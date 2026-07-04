@@ -1,0 +1,876 @@
+.TH NINA 1 "2026" "nina" "User Commands"
+
+.SH NAME
+nina - command-line personal knowledge management system
+
+.SH SYNOPSIS
+.B nina
+.RI [ OPTION ] " [ARGUMENT]"
+
+.br
+.B nina
+.br
+.B nina
+"Article Title"
+
+.SH DESCRIPTION
+.B nina
+is a command-line personal knowledge management system that stores all
+content as Markdown files on the filesystem.
+
+The program provides tools to create, browse, search, and analyze a
+personal knowledge base while preserving the user's direct control
+over their data. Articles are stored as plain text files and may be
+edited with any standard text editor.
+
+The system maintains an index file to enable fast searches and queries.
+This index is derived data and may be rebuilt at any time from the
+Markdown files.
+
+Running
+.B nina
+with no arguments displays a list of all indexed articles.
+
+If the first argument does not match a command option, it is treated
+as an article title and the article will be rendered in the terminal.
+
+.SH ARTICLE FORMAT
+Each article is stored as a Markdown file beginning with a simple
+metadata header:
+
+.nf
+
+# Article Title
+
+* Author: Name
+* Tags: tag1 tag2 tag3
+* Date: YYYY-MM-DD
+.fi
+
+Only the title line is required. All other fields are optional.
+
+The remainder of the file contains standard Markdown text.
+
+.SH OPTIONS
+
+.TP
+.BR -n ", " --new " TITLE"
+Create a new article with the specified title and open it in the
+configured text editor.
+
+.TP
+.BR -s ", " --search " QUERY"
+Search the full text of all articles - titles and body
+content - for the given query, and list matching articles
+ranked by relevance. The query may be one or more words.
+Matching is case-insensitive and ignores punctuation
+differences.
+
+Results are ranked so that articles where the query words
+appear close together, in a title, or in a heading rank
+above articles where the words are far apart or scattered
+across different sentences. This ranking is a deliberate,
+useful approximation rather than a strict literal match;
+it is still fully deterministic (the same query over the
+same knowledge base always produces the same ordering).
+
+.RS
+.TP
+.B --count
+Print only the number of matching articles.
+.TP
+.B --explain
+Show the relevance score alongside each result. Useful for
+understanding why articles are ranked as they are.
+.RE
+
+.TP
+.BR -t ", " --tag
+Display a list of all tags in the knowledge base.
+
+.TP
+.BR -t ", " --tag " TAG"
+List articles associated with the specified tag.
+
+.TP
+.BR -d ", " --date " RANGE"
+List articles filtered by modification date.
+
+Supported formats include:
+
+.nf
+YYYY
+YYYY-MM
+YYYY-MM-DD
+START..END
+DATE+N
+.fi
+
+Examples:
+
+.nf
+nina --date 2026
+nina --date 2026-03
+nina --date 2026-03-10
+nina --date 2026-03-01..2026-03-31
+nina --date 2026-03-10+7
+.fi
+
+.TP
+.BR -b ", " --backlinks " TITLE"
+Display articles that link to the specified article.
+
+.TP
+.BR -l ", " --links " TITLE"
+Display articles linked from the specified article.
+
+.TP
+.BR -r ", " --random
+Open a random article.
+
+.TP
+.BR --read " FILE"
+Render an arbitrary text file through the same rendering engine used
+for articles, without consulting the index. The file need not be
+part of the knowledge base, be named with a
+.B .md
+extension, or contain a metadata header; plain text simply renders
+with no styling applied. If
+.I FILE
+is omitted and data is piped in instead (or piped into
+.B nina
+with no arguments at all), the piped stream is rendered the same way.
+Editing while viewing is supported either way, but piped data has no
+file behind it - if it is edited and saved, you will be prompted for
+a destination before the edit is discarded.
+
+.PP
+When piped data is edited and saved to a
+.I different
+path than the original buffer (a "save as" inside the editor),
+.B less
+has no way to learn this and will continue displaying the original,
+unchanged buffer rather than the newly saved file. The edit is not
+lost - it exists at the path you saved it to - but it will not be
+shown until you run
+.B nina --read
+again on that path directly. Editing and saving in place does not
+have this limitation.
+
+.TP
+.BR --orphan
+List articles that are not referenced by any other article.
+
+.TP
+.BR --orphan " --count"
+Display only the number of orphan articles.
+
+.TP
+.BR --dangling
+List links that reference articles that do not exist.
+
+.TP
+.BR --dangling " --count"
+Display only the number of dangling links.
+
+.TP
+.BR --graph
+Output a graph representation of article links suitable for Graphviz.
+
+.TP
+.BR --stats
+Display statistics describing the knowledge base.
+
+.TP
+.BR -i ", " --index
+Rebuild the article index from the Markdown files.
+
+.TP
+.BR --remove " [\"ARTICLE TITLE\"]"
+Remove an article.
+If
+.I "ARTICLE TITLE"
+is omitted, a numbered list of all articles is displayed for selection.
+
+The action taken is controlled by
+.B REMOVE_MODE
+in the configuration file:
+.BR archive ,
+.BR delete ,
+or
+.BR choose
+(prompt at runtime). See
+.BR nina.conf (5).
+
+If the given title does not match any article, similar titles are
+suggested.
+
+.TP
+.BR --repair
+Run interactive tools that assist in repairing common problems such
+as duplicate titles or malformed metadata.
+
+.TP
+.BR --restore
+Restore an article from the archive.
+
+.TP
+.BR --resync
+Compare each article's title against its filename and list any
+mismatches. Renaming is interactive and one article at a time;
+select a number to rename it to the program's expected filename,
+or press
+.B Enter
+to exit. This command does not rebuild the index; run
+.B nina --index
+afterward.
+
+
+.TP
+.BR -D ", " --doctor
+Run diagnostics on the knowledge base and configuration.
+
+.TP
+.BR --config
+Display the current configuration file.
+
+.TP
+.BR --config " --edit"
+Open the configuration file in the configured editor.
+
+.TP
+.BR --config " --validate"
+Validate the configuration file.
+
+.TP
+.BR --config " --reset"
+Back up the current configuration file and replace it with the
+default configuration.
+Requires typing
+.B reset
+to confirm.
+
+.TP
+.BR --macro
+Install custom macros for use in
+.B {{...}}
+expansions (see MARKUP LANGUAGE, Macros in
+.BR nina.conf (5)).
+Scans
+.B MACROS_DIR
+for macro files, validates each one, and installs whichever
+macros pass validation. This command is never interactive and
+never repairs a macro file - it only decides which macros nina
+will load, and reports the filename and reason for anything it
+rejects. Most users will not need this command unless they are
+installing a macro someone else wrote, or writing their own.
+Run it after adding, removing, or editing a macro file; macros
+are not re-validated every time an article is rendered.
+
+.TP
+.BR --plugin
+Install custom plugins for use in
+.B <<...>>
+expansions (see MARKUP LANGUAGE, Plugins in
+.BR nina.conf (5)).
+Scans
+.B PLUGINS_DIR
+for plugin files, validates each one, and installs whichever
+plugins pass validation. This command is never interactive and
+never repairs a plugin file - it only decides which plugins nina
+will load, and reports the filename and reason for anything it
+rejects. Plugins are a more powerful and less restricted
+mechanism than macros: a plugin may read other articles in the
+knowledge base and, if explicitly permitted, reach the network.
+See SECURITY CONSIDERATIONS in
+.BR nina.conf (5)
+before installing a plugin written by someone else. Run this
+command after adding, removing, or editing a plugin file;
+plugins are not re-validated every time an article is rendered.
+
+.SH INTERACTIVE NAVIGATION
+Many commands display numbered result lists.
+
+Entering a number will open the corresponding article.
+
+Press
+.B Enter
+to exit without opening an article.
+
+.SH FILES
+
+.TP
+.I ~/.nina/config
+User configuration file.
+
+.TP
+.I ~/.nina/index.tsv
+Generated metadata index.
+
+.TP
+.I ~/.nina/macros/
+Default directory for macro files. See
+.BR nina.conf (5).
+
+.TP
+.I ~/.nina/macros.tsv
+Generated list of macros that passed validation. Rewritten
+each time
+.B --macro
+is run; not intended to be edited by hand.
+
+.TP
+.I ~/.nina/macros-dispatch.awk
+Generated macro dispatch logic, derived from
+.IR ~/.nina/macros.tsv .
+Rewritten each time
+.B --macro
+is run; not intended to be edited by hand.
+
+.TP
+.I ~/.nina/plugins/
+Default directory for plugin files. See
+.BR nina.conf (5).
+
+.TP
+.I ~/.nina/plugins.tsv
+Generated list of plugins that passed validation, including
+whether each one is permitted the longer of the two plugin
+timeouts. Rewritten each time
+.B --plugin
+is run; not intended to be edited by hand.
+
+.TP
+.I ~/nina/
+Default directory containing article Markdown files.
+
+.TP
+.I ~/nina/archive/
+Archive directory used when removing articles.
+
+.SH EXIT STATUS
+Most commands use a simple convention:
+
+.TP
+.B 0
+Success.
+
+.TP
+.B 1
+An error occurred (e.g. article not found, invalid usage).
+
+.PP
+.BR --doctor
+is an exception and uses a three-tier convention reflecting the
+most severe issue found:
+
+.TP
+.B 0
+No problems found.
+
+.TP
+.B 1
+One or more warnings were found, but no errors.
+
+.TP
+.B 2
+One or more errors were found.
+
+
+
+
+
+
+
+.SH EXAMPLES
+
+Create a new article:
+
+.nf
+nina --new "Project Ideas"
+.fi
+
+Open an article:
+
+.nf
+nina "Project Ideas"
+.fi
+
+List all articles in the knowledge base:
+
+.nf
+nina
+.fi
+
+Search articles by content:
+
+.nf
+nina --search database
+.fi
+
+Filter articles by tag:
+
+.nf
+nina --tag research
+.fi
+
+List articles modified during a specific month:
+
+.nf
+nina --date 2026-03
+.fi
+
+List articles modified during a date range:
+
+.nf
+nina --date 2026-03-01..2026-03-31
+.fi
+
+List articles modified within a number of days of a date:
+
+.nf
+nina --date 2026-03-10+7
+.fi
+
+Show articles that link to a page:
+
+.nf
+nina --backlinks "Neural Networks"
+.fi
+
+Show links contained within an article:
+
+.nf
+nina --links "Neural Networks"
+.fi
+
+List orphaned articles (not referenced by other pages):
+
+.nf
+nina --orphan
+.fi
+
+Count orphaned articles:
+
+.nf
+nina --orphan --count
+.fi
+
+List dangling links (links pointing to missing articles):
+
+.nf
+nina --dangling
+.fi
+
+Count dangling links:
+
+.nf
+nina --dangling --count
+.fi
+
+Open a random article:
+
+.nf
+nina --random
+.fi
+
+Render a file that is not part of the knowledge base:
+
+.nf
+nina --read notes.txt
+.fi
+
+Render piped data:
+
+.nf
+cat draft.md | nina --read
+.fi
+
+Rebuild the article index:
+
+.nf
+nina --index
+.fi
+
+Run system diagnostics:
+
+.nf
+nina --doctor
+.fi
+
+Repair duplicate titles or invalid metadata:
+
+.nf
+nina --repair
+.fi
+
+Find and fix filenames that no longer match their article's title:
+
+.nf
+nina --resync
+.fi
+
+Remove an article:
+
+.nf
+nina --remove "Old Notes"
+.fi
+
+Restore an article from the archive:
+
+.nf
+nina --restore
+.fi
+
+Export the link graph for visualization with Graphviz:
+
+.nf
+nina --graph > graph.dot
+dot -Tpng graph.dot -o nina_graph.png
+.fi
+
+Install a custom macro after adding it to
+.BR MACROS_DIR :
+
+.nf
+nina --macro
+.fi
+
+Install a custom plugin after adding it to
+.BR PLUGINS_DIR :
+
+.nf
+nina --plugin
+.fi
+
+.SH DESIGN NOTES
+
+The design of
+.B nina
+follows several principles intended to keep the system reliable,
+transparent, and easy to maintain.
+
+.PP
+Plain text storage
+.RS
+All articles are stored as Markdown files on the filesystem.
+The files can be opened, edited, moved, or copied using standard tools
+without requiring the
+.B nina
+program itself.
+.RE
+
+.PP
+Filesystem as the source of truth
+.RS
+The Markdown files represent the canonical state of the knowledge base.
+Supporting files such as the metadata index are derived data and can
+always be rebuilt.
+.RE
+
+.PP
+Derived data is disposable
+.RS
+The file
+.I index.tsv
+contains metadata extracted from the articles to accelerate queries.
+If the index becomes invalid or is deleted, it can be regenerated by
+running:
+
+.nf
+nina --index
+.fi
+.RE
+
+.PP
+Small tools and simple scripts
+.RS
+The program is implemented as a collection of small scripts that perform
+well-defined tasks. This design keeps the code readable and reduces the
+complexity of individual components.
+.RE
+
+.PP
+Minimal dependencies
+.RS
+The system intentionally avoids heavy libraries or complex frameworks.
+The goal is to remain portable across typical UNIX environments and to
+work reliably on minimal systems.
+.RE
+
+.PP
+Graceful degradation
+.RS
+Problems such as duplicate titles, malformed metadata, or missing
+articles should not render the system unusable. Instead the program
+attempts to continue operating while reporting warnings and providing
+tools such as
+.B --doctor
+and
+.B --repair
+to help resolve issues.
+.RE
+
+.PP
+User control of data
+.RS
+The program avoids modifying article files unless explicitly requested.
+Users retain full control over their Markdown documents and may edit
+them using any text editor.
+.RE
+
+.PP
+UNIX-style command behavior
+.RS
+Commands are driven by flags, output is text-based, and results can be
+piped into other utilities. The program is intended to behave like other
+traditional command-line tools.
+.RE
+
+
+
+
+
+
+
+
+
+
+.SH WORKFLOW
+
+A typical workflow using
+.B nina
+may look like the following.
+
+.PP
+Create a new article when capturing information:
+
+.nf
+nina --new "Distributed Systems Notes"
+.fi
+
+.PP
+Edit the article using the configured editor and add links to other
+articles using nina-style link syntax.
+
+.PP
+Open articles directly by title:
+
+.nf
+nina "Distributed Systems Notes"
+.fi
+
+.PP
+Search for related topics:
+
+.nf
+nina --search consensus
+.fi
+
+.PP
+Browse articles by tag:
+
+.nf
+nina --tag distributed
+.fi
+
+.PP
+Navigate through linked articles using numbered selections when
+viewing results.
+
+.PP
+Periodically rebuild the index if many articles have been added
+or modified:
+
+.nf
+nina --index
+.fi
+
+.PP
+Use diagnostic tools to inspect the health of the knowledge base:
+
+.nf
+nina --doctor
+.fi
+
+.PP
+Repair problems such as duplicate titles or malformed metadata:
+
+.nf
+nina --repair
+.fi
+
+.PP
+Over time the knowledge base becomes a network of Markdown files
+connected by links, searchable by tags and dates, and accessible
+directly from the command line.
+
+.SH TROUBLESHOOTING
+
+The following commands can help diagnose and repair common problems.
+
+.TP
+Index file missing or out of date
+
+If commands fail due to a missing or outdated index, rebuild it:
+
+.nf
+nina --index
+.fi
+
+.TP
+Duplicate article titles
+
+Article titles must be unique. Duplicate titles will be skipped during
+indexing.
+
+To locate and repair duplicate titles:
+
+.nf
+nina --doctor
+nina --repair
+.fi
+
+.TP
+Articles not appearing in search results
+
+If newly created articles do not appear in listings, rebuild the index:
+
+.nf
+nina --index
+.fi
+
+.TP
+Broken links
+
+Links that point to missing articles can be identified with:
+
+.nf
+nina --dangling
+.fi
+
+These links can be fixed either by editing the article or by creating
+the missing page.
+
+.TP
+Orphan articles
+
+Articles that are not referenced by any other article can be listed
+with:
+
+.nf
+nina --orphan
+.fi
+
+These pages may represent isolated notes or forgotten topics.
+
+.TP
+Configuration errors
+
+If the configuration file contains syntax errors or missing settings:
+
+.nf
+nina --config --validate
+.fi
+
+.TP
+Unexpected behavior
+
+Run system diagnostics to check the environment, index integrity, and
+article metadata:
+
+.nf
+nina --doctor
+.fi
+
+.PP
+Because all article data is stored as Markdown files, users can always
+inspect or edit the files directly using standard tools if necessary.
+
+
+
+
+
+
+
+
+.SH HISTORY
+
+The
+.B nina
+program was developed as a command-line knowledge management tool
+designed around the principles of plain text storage and UNIX-style
+tool behavior.
+
+.PP
+Many personal knowledge systems rely on graphical interfaces,
+databases, or proprietary storage formats. While these systems may
+provide advanced features, they can make it difficult for users to
+retain direct control over their data.
+
+.PP
+The design of
+.B nina
+takes a different approach. Articles are stored as ordinary Markdown
+files on the filesystem, allowing them to be edited with any text
+editor and managed using standard command-line tools.
+
+.PP
+The program provides indexing, navigation, and analysis tools that
+operate on these files while preserving the user's ownership of the
+underlying data.
+
+.PP
+This design reflects several long-standing UNIX traditions:
+
+.RS
+.IP (bu
+Plain text data formats
+.IP (bu
+Programs that do one job well
+.IP (bu
+Tools that compose naturally with other utilities
+.IP (bu
+Minimal dependencies and predictable behavior
+.RE
+
+.PP
+By combining these principles with a lightweight Markdown-based
+knowledge base, the system aims to provide a durable and transparent
+tool for organizing personal information in a terminal environment.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.SH LICENSE
+.B nina
+is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free
+Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+.B nina
+is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.
+
+See the GNU General Public License for more details.
+
+.SH SEE ALSO
+.BR less (1),
+.BR grep (1),
+.BR awk (1),
+.BR sed (1)

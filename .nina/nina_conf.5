@@ -1,0 +1,542 @@
+.\" GNU-style manual page for nina configuration
+.TH NINA.CONF 5 "February 2026" "nina 1.0" "File Formats"
+
+.SH NAME
+nina.conf \- configuration file and markup specification for nina
+
+.SH SYNOPSIS
+.I ~/.nina/config
+
+.SH DESCRIPTION
+The
+.B nina
+configuration file defines runtime behavior, rendering options,
+style definitions, feature toggles, and file locations used by the
+.BR nina (1)
+command.
+
+The configuration file is a POSIX shell script and is executed
+using the
+.B source
+mechanism. It must contain valid shell syntax.
+
+Only trusted users should modify this file.
+
+.SH FILE LOCATION
+The configuration file is read from:
+
+.RS
+.I ~/.nina/config
+.RE
+
+If the file does not exist, default behavior is used.
+
+.SH GENERAL STRUCTURE
+The configuration file typically defines:
+
+.IP \(bu 2
+File system paths
+
+.IP \(bu
+Feature toggles
+
+.IP \(bu
+Rendering styles
+
+.IP \(bu
+Color definitions
+
+.IP \(bu
+Deletion and indexing behavior
+
+.SH PATH CONFIGURATION
+.TP
+.B NINA_DIR
+Directory containing article files.
+Each article is stored as an individual Markdown file.
+
+.TP
+.B INDEX_FILE
+Path to the tab-separated index file.
+
+.TP
+.B ARCHIVE_DIR
+Directory articles are moved to when removed, if
+.B REMOVE_MODE
+results in archiving rather than permanent deletion. See
+.BR nina (1)
+for
+.BR --remove .
+
+.TP
+.B MACROS_DIR
+Directory containing macro files. See MARKUP LANGUAGE, Macros
+below.
+
+.TP
+.B PLUGINS_DIR
+Directory containing plugin files. See MARKUP LANGUAGE, Plugins
+below.
+
+.TP
+.B EDITOR
+Editor used when modifying articles.
+
+.SH FEATURE TOGGLES
+The following boolean or numeric values may be defined:
+
+.TP
+.B ENABLE_COLOR
+Enable ANSI color rendering.
+
+.TP
+.B ENABLE_LINE_NUMBERS
+Enable line numbering when rendering articles.
+
+.TP
+.B AUTO_REINDEX
+Rebuild index automatically after create or delete operations.
+
+.TP
+.B ENABLE_CREATE_PROMPT
+Prompt user to create an article if it does not exist.
+
+.TP
+.B SHOW_LINK_LIST
+Show the list of an article's outbound links after viewing it.
+
+.TP
+.B REMOVE_MODE
+Controls the behavior of
+.BR "nina --remove" .
+One of:
+.BR archive ,
+.BR delete ,
+or
+.BR choose
+(prompt at runtime for each removal). This is a string value,
+not a boolean.
+
+.TP
+.B ENABLE_MACROS
+Enable macro expansion when rendering articles. See MARKUP
+LANGUAGE, Macros below.
+
+.TP
+.B ENABLE_PLUGINS
+Enable plugin expansion when rendering articles. See MARKUP
+LANGUAGE, Plugins below. Off by default.
+
+.TP
+.B PLUGIN_PERMIT_WEB
+Allow plugins to reach the network. Has no effect if
+.B ENABLE_PLUGINS
+is false. Off by default; see SECURITY CONSIDERATIONS below
+before enabling.
+
+.TP
+.B PLUGIN_TIMEOUT
+Per-invocation time limit, in seconds, for a plugin that reaches
+the network or the rest of the knowledge base. Numeric value,
+not a boolean. Default: 5.
+
+.TP
+.B PLUGIN_NO_WEB_TIMEOUT
+Per-invocation time limit, in seconds, for a plugin that does
+neither - pure in-memory work on the article being rendered.
+Accepts fractional values. Numeric value, not a boolean.
+Default: 0.5.
+
+.TP
+.B PLUGIN_MAX_OUTPUT_BYTES
+Maximum bytes of output read back from a single plugin
+invocation; output beyond this is truncated, not treated as an
+error. Numeric value, not a boolean. Default: 65536.
+
+.TP
+.B PLUGIN_MAX_MEMORY_KB
+Virtual memory limit, in kilobytes, applied to a plugin's
+subprocess. Numeric value, not a boolean. Default: 262144.
+
+Boolean values may be expressed as:
+
+.RS
+.nf
+true / false
+1 / 0
+.fi
+.RE
+
+.SH STYLE DEFINITIONS
+Style variables define ANSI escape sequences used during rendering.
+
+Examples:
+
+.RS
+.nf
+RESET="\\033[0m"
+H1_STYLE="\\033[1;4;15m"
+HR_SYMBOL="┈"
+HR_STYLE="\\033[38;5;60m"
+.fi
+.RE
+
+ANSI escape sequences must be defined using escaped backslash notation
+(e.g., \\033) rather than literal control characters.
+
+.SH TERMINAL BEHAVIOR
+.B nina
+detects terminal characteristics at runtime:
+
+.IP \(bu 2
+Terminal width via COLUMNS or tput
+
+.IP \(bu
+Color depth via TERM and COLORTERM
+
+Horizontal rules and line wrapping may adapt to terminal width.
+
+Color depth may adjust style behavior automatically.
+
+.SH ARTICLE FORMAT
+Articles are stored as plain text Markdown files.
+
+Each article begins with a structured header:
+
+.RS
+.nf
+# Article Title
+- Author: Name
+- Date: YYYY-MM-DD
+- Tags: tag1 tag2 tag3
+.fi
+.RE
+
+Header fields are optional but recommended.
+
+.SH MARKUP LANGUAGE
+
+.B nina
+implements a lightweight, line-oriented markup language.
+Rendering is stateless and processed line-by-line.
+
+.SS Headers
+Headers are defined using leading hash characters:
+
+.RS
+.nf
+# H1
+## H2
+### H3
+#### H4
+##### H5
+###### H6
+.fi
+.RE
+
+.SS Block Quotes
+Block quotes begin with:
+
+.RS
+.nf
+> quoted text
+.fi
+.RE
+
+.SS Horizontal Rules
+A horizontal rule is defined as:
+
+.RS
+.nf
+---
+.fi
+.RE
+
+.SS Lists
+Bullet lists use one or more asterisks:
+
+.RS
+.nf
+* Level 1
+** Level 2
+*** Level 3
+.fi
+.RE
+
+Numbered lists use:
+
+.RS
+.nf
+1. Item
+2. Item
+.fi
+.RE
+
+.SS TODO Items
+TODO entries are defined as:
+
+.RS
+.nf
+[] Incomplete item
+[x] Completed item
+.fi
+.RE
+
+Completed items may be rendered using strikeout formatting.
+
+.SS Inline Formatting
+The following inline markup is supported:
+
+.TP
+.B Bold
+.nf
+'''bold text'''
+.fi
+
+.TP
+.B Italic
+.nf
+''italic text''
+.fi
+
+.TP
+.B Underline
+.nf
+__underlined__
+.fi
+
+.TP
+.B Strikeout
+.nf
+--struck--
+.fi
+
+.TP
+.B Highlight
+.nf
+==highlighted==
+.fi
+
+.SS Code
+Inline code is defined using single backticks:
+
+.RS
+.nf
+`code`
+.fi
+.RE
+
+Literal unparsed text is defined using double backticks:
+
+.RS
+.nf
+``literal text``
+.fi
+.RE
+
+Line-level code blocks begin with triple backticks:
+
+.RS
+.nf
+``` code line
+.fi
+.RE
+
+Multi-line code blocks are not state-tracked and are processed line-by-line.
+
+.SS Links
+Internal links use:
+
+.RS
+.nf
+[[Article Name]]
+.fi
+.RE
+
+External links use Markdown syntax:
+
+.RS
+.nf
+[text](url)
+.fi
+.RE
+
+.SS Macros
+A macro is written as
+.B {{name}}
+or
+.B "{{name argument argument}}"
+and is replaced with computed text when an article is
+rendered. Two macros ship with nina:
+
+.TP
+.B {{date}}
+Insert current system date.
+
+.TP
+.B {{time}}
+Insert current system time.
+
+.TP
+.B "{{| N%}}"
+Insert a progress bar filled to
+.IR N "%."
+An optional second argument sets the bar's width in
+characters (default 20):
+.BR "{{| 30% 10}}" .
+
+An unrecognized macro name is left exactly as written; nina
+does not treat it as an error.
+
+Macros are not built into nina's program files. Each one is a
+separate file in
+.B MACROS_DIR
+(see PATH CONFIGURATION above). Run
+.B "nina --macro"
+to validate the files in that directory and install whichever
+ones pass validation; see
+.BR nina (1)
+for what that command checks and how it reports problems, and
+the
+.I Macros
+help article shipped with nina for the full authoring
+contract.
+
+Macro expansion can be disabled entirely with
+.B ENABLE_MACROS
+(see FEATURE TOGGLES above). Macros are validated only when
+.B "nina --macro"
+is run, not on every render.
+
+.SS Plugins
+A plugin is written as
+.B <<name>>
+or
+.B "<<name argument argument>>"
+and is replaced with computed text when an article is
+rendered, the same as a macro. Unlike a macro, a plugin is not
+limited to transforming the text it was given: it may read
+other articles in the knowledge base, and - only if explicitly
+permitted - reach the network. A plugin may never write to any
+file; this is enforced at install time, not left as a
+convention for authors to follow.
+
+Three plugins ship with nina:
+
+.TP
+.B <<TOC>>
+Insert a bulleted outline of the headers in the article being
+rendered.
+
+.TP
+.B <<Backlinks>>
+Insert a list of articles that link to the article being
+rendered.
+
+.TP
+.B "<<show_alert TITLE>>"
+Insert the body (header stripped) of another article by title.
+Useful for shared boilerplate, such as a standard notice
+repeated across several articles.
+
+An unrecognized plugin name is left exactly as written; nina
+does not treat it as an error. The same is true of a plugin
+that fails, times out, or exceeds its memory limit while
+running: the original
+.B <<...>>
+text is left untouched rather than silently replaced with
+nothing.
+
+Plugins are not built into nina's program files. Each one is a
+separate AWK file in
+.B PLUGINS_DIR
+(see PATH CONFIGURATION above). Run
+.B "nina --plugin"
+to validate the files in that directory and install whichever
+ones pass validation; see
+.BR nina (1)
+for what that command checks and how it reports problems, and
+the
+.I Plugins
+help article shipped with nina for the full authoring contract,
+including the functions available to a plugin for reading
+articles or the network.
+
+Plugin expansion can be disabled entirely with
+.B ENABLE_PLUGINS
+(see FEATURE TOGGLES above), and network access can be disabled
+independently with
+.B PLUGIN_PERMIT_WEB
+even when plugins themselves are enabled. Plugins are validated
+only when
+.B "nina --plugin"
+is run, not on every render. See SECURITY CONSIDERATIONS below
+before installing a plugin written by someone else.
+
+.SS Hidden Comments
+Hidden comments are defined as:
+
+.RS
+.nf
+/% hidden comment %/
+.fi
+.RE
+
+Hidden comments are removed during rendering.
+
+.SH SECURITY CONSIDERATIONS
+The configuration file is executed as shell code.
+Improper modification may execute arbitrary commands.
+
+Article content is not executed as shell code.
+
+This statement comes with one deliberate exception: an article
+may invoke an installed plugin via
+.B <<name>>
+syntax. The plugin's own code is what runs, not the article
+text - an article cannot supply or alter code, only choose
+which already-installed plugin to call and what arguments to
+pass it. Plugin files are restricted at install time to a
+read-only subset of AWK: a file containing
+.BR system() ,
+.BR getline ,
+or a redirected
+.B print
+or
+.B printf
+is rejected outright and never executes, on the theory that an
+AWK plugin's only paths to the filesystem or another process are
+exactly these three constructs, so excluding all three closes
+the question rather than relying on a best-effort scan to catch
+clever uses of them.
+
+Within those limits, a plugin may still read any article in the
+knowledge base, and - only if
+.B PLUGIN_PERMIT_WEB
+is enabled - issue HTTP(S) requests. Installing a plugin written
+by someone else should be treated with the same caution as
+installing any other piece of software: review what it does
+before adding it to
+.BR PLUGINS_DIR .
+
+Terminal escape sequences in article files are stripped during rendering
+to prevent terminal control injection.
+
+.SH SEE ALSO
+.BR nina (1)
+
+.SH COPYRIGHT
+Copyright \(co 2026
+
+This file is part of
+.B nina.
+
+nina is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nina is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+See the GNU General Public License for more details.
