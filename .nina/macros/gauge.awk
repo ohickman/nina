@@ -114,7 +114,7 @@ function macro_gauge(args   ,tok, argc, idx, units, width, \
         return "{{gauge: min and max must differ}}"
     }
 
-    RED = "\033[41m"; AMBER = "\033[43m"; GREEN = "\033[42m"; RESET = "\033[0m"
+    RED = "\033[48;5;124m"; AMBER = "\033[48;5;178m"; GREEN = "\033[48;5;70m"; RESET = "\033[0m"
 
     # Cumulative boundary positions first, then differences for band
     # widths - guarantees bands always sum to exactly `width` (rounding
