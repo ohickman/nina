@@ -180,7 +180,7 @@ else
 	HIGHLIGHT_STYLE="\033[7m"
 	STRIKEOUT_STYLE="\033[9m"
 
-	# Macros
+	# Admonitions / Callouts
 	INFO_STYLE=" \033[7m"
 	NOTE_STYLE=" \033[7m"
 	TIP_STYLE=" \033[7m"
