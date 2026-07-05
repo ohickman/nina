@@ -4,11 +4,11 @@
 - Alias: markdown
 
 # Text deccoration
-**Bold**                     `'''Bold'''`, `**Bold**`
-''Italic''                   `''Italic''`, `\\Italic\\`, `*Italic*`
-__Underline__                `__Underline__`
-~~Strikeout~~                `~~Strikeout~~`
-==Highlight==                `==Highlight==`
+**Bold**                    `'''Bold'''`, `**Bold**`
+''Italic''                  `''Italic''`, `\\Italic\\`, `*Italic*`
+__Underline__               `__Underline__`
+~~Strikeout~~               `~~Strikeout~~`
+==Highlight==               `==Highlight==`
 ++Added++                   `++Added++`
 --Removed--                 `--Removed--`
 
@@ -23,64 +23,32 @@ __Underline__                `__Underline__`
 [external](example.com)  `[external](example.com)`
 
 # HTML Characters
-&forall;                        `\&forall;`
-&part;                        `\&part;`
-&exist;                        `\&exist;`
-&isin;                        `\&isin;`
-&sum;                        `\&sum;`
-&frasl;                        `\&frasl;`
-&radic;                        `\&radic;`
-&infin;                        `\&infin;`
-&int;                        `\&int;`
-&there4;                        `\&there4;`
-&sup;                        `\&sup;`
-&perp;                        `\&perp;`
-&sup1;                        `\&sup1;`
-&sup2;                        `\&sup2;`
-&sup3;                        `\&sup3;`
-&fnof;                        `\&fnof;`
-&real;                        `\&real;`
-## Some of these are problematic
-`U+02182`        U+02182
-`\&#x2182;`       ↂ
-`\&#8578;`        8
-`\&#0x123;`       &#0x123;
-`\&0x123;`        &0x123;
-`\&#123;`         1
-`\&123;`          &123;
-`\&123;`          &123;
-`\&x123;`         &x123;
-`\&#124;`         1 
-`\&#1234;`        1
-
-
-
-# Headers
-## Second level headers
-### Third level headers
-#### Fourth level header
-##### Fifth level header
-###### Sixth level header
--  Subtitle: `-`
+Most named characters supported
+&forall;   `\&forall;`            &part;   `\&part;`
+&exist;   `\&exist;`             &sum;   `\&sum;`
+&radic;   `\&radic;`             &there4;   `\&there4;`
+&fnof;   `\&fnof;`              &real;   `\&real;`
 
 # Macros
-`{{| 75 30}}`75% progress bar, 50char wide:   {{| 75 30}} /% 2nd argument, width, is optional %/
-`{{sparkline 34 24 88 50 40 20 22 50 55 60 70 80 90 75 50}}` Sparkline:  {{sparkline 34 24 88 50 40 20 22 50 55 60 70 80 90 75 50}}
-`{{gauge 60 PSI 0 20 40 100 120 150}}` {{gauge 60 PSI 0 20 40 100 120 150}}
-Days to go: {{days_to_go 2027-01-01}}
-`{{date}}`: {{date}}, `{{time}}`: {{time}}
+`{{| 75% 30}}`:                  {{| 75 30}} /% 2nd argument (width) optional, % also optional. %/
+`{{sparkline 8 6 7 5 3 0 9}}`:   {{sparkline 8 6 7 5 3 0 9}}
+`{{gauge 5 bar 0 1 2 8 9 15}}`:  {{gauge 5 bar 0 1 2 8 9 15}} /% Units argument optional %/
+`{{days_to_go 1970-01-01}}`:     {{days_to_go 1970-01-01}}
+`{{date}}`: {{date}}           `{{time}}`: {{time}}
 /% CO%ME/NTS! %/
 
 # Admonitions / callouts
-INFO:
+INFO: following text rendered __normally__
 NOTE:
 TIP:
 TODO:
 FIXME:
 WARNING:
-/% {{merge|title}} {{split|title}} {{intigrate}} {{poor formatting}} {{contains errors}} {{obsolete}} {{fact checked}} {{not fact checked}} %/
 
-# Lists and List-like Formatting
+# Full-line Formatting
+View the source of this document to reval formatting codes.
+
+## Lists and List-like Formatting
 
 # Headers
 ## Second level headers
@@ -88,23 +56,23 @@ WARNING:
 #### Fourth level header
 ##### Fifth level header
 ###### Sixth level header
--  Subtitle: `-`
+-  Subtitle
 
-## Unordered Lists
+### Unordered Lists
 * This is the ''first'' element of the list
 ** Nested item
 ***** Skipping levels isn't detected.
 
-## Numbered Lists
+### Numbered Lists
 1. First line
 3. Unfortunately lines are not renumbered.
 
-## Definition Lists
+### Definition Lists
 ; Item `; Item`
 : Definition `: Definition`
 ::: Deep inset `::: Deep inset`
 
-## To Do lists
+### To Do lists
 []  things __are not__ done. (one or two spaces between bracket and text ok)
 [ ] things __are__ not done. (space in bracket ok)
 [x] things that __are__ done. (formatting ignored)
@@ -112,6 +80,6 @@ WARNING:
 -[x] nested item that __is__ done.
 -[ ] open brackets
 
-## Block Quotes
+### Block Quotes
 > Accept the moment
 >> Act without expectation
