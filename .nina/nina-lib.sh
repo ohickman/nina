@@ -1327,5 +1327,45 @@ dealias_canonical() {
 
 # -----------------------------------------
 # Interoperability helpers for BSD and iOS
+#
+# GNU stat (Linux) and BSD stat (macOS/iOS)
+# take completely different flags, and there
+# is no single invocation that works
+# unmodified on both. Probe once here, at
+# library load time, rather than per-call,
+# and expose stat_mtime()/stat_date()
+# wrappers so callers never see the platform
+# difference.
 # -----------------------------------------
+
+if stat -c '%Y' . >/dev/null 2>&1; then
+    _NINA_STAT_GNU=true
+else
+    _NINA_STAT_GNU=false
+fi
+
+# stat_mtime FILE
+# Prints the file's modification time as a
+# Unix epoch integer, suitable for numeric
+# comparisons (e.g. drift checks in --doctor).
+stat_mtime() {
+    if [[ "$_NINA_STAT_GNU" == true ]]; then
+        stat -c '%Y' "$1" 2>/dev/null
+    else
+        stat -f '%m' "$1" 2>/dev/null
+    fi
+}
+
+# stat_date FILE
+# Prints the file's modification time as
+# YYYY-MM-DD, matching the format valid_date()
+# expects (used as a fallback "Date" field
+# when indexing an article with none set).
+stat_date() {
+    if [[ "$_NINA_STAT_GNU" == true ]]; then
+        stat -c '%y' "$1" 2>/dev/null | cut -d' ' -f1
+    else
+        stat -f '%Sm' -t '%Y-%m-%d' "$1" 2>/dev/null
+    fi
+}
 
