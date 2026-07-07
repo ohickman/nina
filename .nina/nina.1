@@ -178,6 +178,53 @@ Display only the number of dangling links.
 Output a graph representation of article links suitable for Graphviz.
 
 .TP
+.BR --tree " TITLE " [ --depth \ N " | " -d \ N ]
+Display a link-graph map centered on
+.IR TITLE :
+articles that link to it are drawn above, articles it links to are
+drawn below, and each of those is expanded one further hop in the
+same direction, by default two hops in each direction. The center
+article is shown on its own row, numbered
+.BR 0 ,
+with every other row numbered
+.B 1
+upward in the order printed.
+
+A
+.B ▼
+beside a row above the center, or a
+.B ▲
+beside a row below it, means that article also links directly with
+the row one step closer to the center - not only through the longer
+chain being drawn. This never adds a row on its own; a direct link
+between an outer article and the center itself is instead shown as
+its own separate numbered row, since it is exactly as real a
+connection as the one already being drawn.
+
+.RS
+.TP
+.BR --depth " N, " -d " N"
+Show
+.I N
+hops in each direction instead of the default of two.
+.I N
+must be a whole number, 1 or greater. Accepts
+.B --depth
+.IR N ,
+.BR --depth = N ,
+.B -d
+.IR N ,
+or
+.B -d= N.
+.RE
+
+The center article's title is styled using
+.B TREE_CENTER_STYLE
+in the configuration file - bold by default, any other ANSI
+sequence if you prefer, or empty for no styling at all. See
+.BR nina.conf (5).
+
+.TP
 .BR --stats
 Display statistics describing the knowledge base.
 
