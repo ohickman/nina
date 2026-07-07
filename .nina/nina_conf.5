@@ -178,11 +178,21 @@ RESET="\\033[0m"
 H1_STYLE="\\033[1;4;15m"
 HR_SYMBOL="┈"
 HR_STYLE="\\033[38;5;60m"
+TREE_CENTER_STYLE="\\033[1m"
 .fi
 .RE
 
 ANSI escape sequences must be defined using escaped backslash notation
 (e.g., \\033) rather than literal control characters.
+
+.B TREE_CENTER_STYLE
+is applied to the center article's title in
+.BR "nina --tree" 's
+output (see
+.BR nina (1)).
+It works the same as any other style variable here - set it to a
+different ANSI sequence, or to an empty string for no styling at
+all.
 
 .SH TERMINAL BEHAVIOR
 .B nina
