@@ -37,6 +37,50 @@ case "$1" in
             run nina-tag-filter.sh "${@:2}"
         fi
         ;;
+    --tree)         run nina-tree.sh        ;;
+    *)
+    # Treat everything else as article title
+    "$SCRIPT_DIR/nina-view.sh" "$1" ;;
+esac
+#!/usr/bin/env bash
+
+# Determine script directory (robust against invocation location)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Dispatch helper funciton
+ARGS=("${@:2}") # Var so we can always pass remaining parameters
+run() { "$SCRIPT_DIR/$1" "${ARGS[@]}"; } # really just avoids passing directory and flags every call...handle default as we did everything before.
+
+case "$1" in
+    "")             run nina-list.sh        ;;
+    --config)       run nina-config.sh      ;;
+    --backlinks|-b) run nina-backlinks.sh   ;;
+    --dangling)     run nina-dangling.sh    ;;
+    --date|-d)      run nina-date-filter.sh ;;
+    --doctor|-D)    run nina-doctor.sh      ;;
+    --file-name)    run nina-file-name.sh   ;;
+    --graph|-g)     run nina-graph.sh       ;;
+    --index|-i)     run nina-index.sh       ;;
+    --links|-l)     run nina-link-list.sh   ;;
+    --macro)        run nina-macros.sh      ;;
+    --new|-n)       run nina-new.sh         ;;
+    --orphan)       run nina-orphan.sh      ;;
+    --plugin)       run nina-plugin.sh      ;;
+    --random|-r)    run nina-random.sh      ;;
+    --read)         run nina-read.sh        ;;
+    --remove)       run nina-remove.sh      ;;
+    --repair)       run nina-repair.sh      ;;
+    --restore)      run nina-restore.sh     ;;
+    --resync)       run nina-resync.sh      ;;
+    --search|-s)    run nina-search.sh      ;;
+    --stats)        run nina-stats.sh       ;;
+    --tag|-t)
+        if [[ -z "$2" ]]; then
+            run nina-tag-list.sh
+        else
+            run nina-tag-filter.sh "${@:2}"
+        fi
+        ;;
     *)
     # Treat everything else as article title
     "$SCRIPT_DIR/nina-view.sh" "$1" ;;
