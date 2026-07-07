@@ -62,7 +62,7 @@ _nina_complete()
                  --doctor -D --file-name --graph -g --index -i \
                  --links -l --macro --new -n --orphan --plugin \
                  --random -r --read --remove --repair --restore \
-                 --resync --search -s --stats --tag -t"
+                 --resync --search -s --stats --tag -t --tree"
 
     # If completing first argument, suggest flags + titles + aliases
     if [[ $COMP_CWORD -eq 1 ]]; then
@@ -88,7 +88,7 @@ _nina_complete()
 
     # If previous argument expects a title
     case "$prev" in
-        --remove|--restore|--links|-l)
+        --remove|--restore|--links|-l|--tree)
             if [[ -f "$INDEX_FILE" ]]; then
                 _nina_match "$cur" "$(index_titles)"
             fi
