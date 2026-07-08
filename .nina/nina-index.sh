@@ -51,12 +51,14 @@ for file in "$NINA_DIR"/*.md; do
     # -----------------------------------------
 
     author=$(header_field "$header" "Author")
+    author=$(normalize_display_title "$author") # sanitizes so tabs in field don't corrupt index
 
     # -----------------------------------------
     # Extract and normalize tags
     # -----------------------------------------
 
     tags=$(header_field "$header" "Tags")
+    tags=$(normalize_display_title "$tags") # sanitizes so tabs in field don't corrupt index
 
     if [[ -n "$tags" ]]; then
         tags=$(echo "$tags" \
