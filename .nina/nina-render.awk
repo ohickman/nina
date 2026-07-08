@@ -27,7 +27,15 @@ BEGIN {
 # Returns the line with all matching spans
 # replaced.
 # -----------------------------------------
-function apply_inline_delim(line, delim, style, reset,    dlen, start, search_from, close_pos, result, p) {
+function apply_inline_delim(line, delim, style, reset,    dlen, start, search_from, close_pos, result, p, n_delim) {
+    # Guard: a single line built almost entirely out of one delimiter
+    # character is never a real formatting span - bail out to the
+    # unmodified line rather than let the O(n^2) scan below run on it.
+    if (length(line) > 5000 && index(line, delim) > 0) {
+        n_delim = gsub(delim, delim, line)   # count occurrences (gsub returns count; line unchanged since replacement == pattern)
+        if (n_delim > 500) return line
+    }
+
     dlen = length(delim)
     result = ""
 
@@ -97,6 +105,16 @@ function apply_inline_delim(line, delim, style, reset,    dlen, start, search_fr
 
 {
     line = $0
+
+    # Strip raw ESC bytes from the source line before any styling is
+    # applied. nina's own ANSI sequences are built later from the
+    # *_STYLE variables, not present in $0 here, so this can never
+    # remove nina's own output - only escape/OSC bytes that were
+    # already present in the note content (e.g. pasted or imported
+    # from an untrusted source), which `less -R` would otherwise pass
+    # straight through to the real terminal.
+    gsub(/\033/, "", line)
+
     is_full_code = 0
     line_number++
 
