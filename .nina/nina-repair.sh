@@ -96,14 +96,23 @@ for file in "$NINA_DIR"/*.md; do
         tmp=$(make_temp_file)
 
         if [[ -z "$new_date" ]]; then
-            sed '/^- Date:/d' "$file" > "$tmp"
+            if sed '/^- Date:/d' "$file" > "$tmp" && [[ -s "$tmp" || ! -s "$file" ]]; then
+                mv "$tmp" "$file"
+                echo "Date updated."
+            else
+                rm -f "$tmp"
+                error "Failed to update date — original file left unchanged."
+            fi
         else
-            sed "s/^- Date:.*/- Date: $new_date/" "$file" > "$tmp"
+            escaped_date=$(printf '%s' "$new_date" | sed 's/[&/\]/\\&/g')
+            if sed "s/^- Date:.*/- Date: $escaped_date/" "$file" > "$tmp" && [[ -s "$tmp" || ! -s "$file" ]]; then
+                mv "$tmp" "$file"
+                echo "Date updated."
+            else
+                rm -f "$tmp"
+                error "Failed to update date — original file left unchanged."
+            fi
         fi
-
-        mv "$tmp" "$file"
-
-        echo "Date updated."
 
     fi
 
@@ -179,11 +188,15 @@ for canon in "${!duplicates[@]}"; do
         # Valid title
         tmp=$(make_temp_file)
 
-        sed "1s/^# .*/# $new_title/" "$file" > "$tmp"
+        escaped_title=$(printf '%s' "$new_title" | sed 's/[&/\]/\\&/g')
 
-        mv "$tmp" "$file"
-
-        echo "Title updated."
+        if sed "1s/^# .*/# $escaped_title/" "$file" > "$tmp" && [[ -s "$tmp" ]]; then
+            mv "$tmp" "$file"
+            echo "Title updated."
+        else
+            rm -f "$tmp"
+            error "Failed to update title — original file left unchanged."
+        fi
         break
 
     done
