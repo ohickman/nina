@@ -15,7 +15,9 @@ echo "    rankdir=LR;"
 echo
 
 scan_links | while IFS=$'\t' read -r src src_canon target target_canon; do
-    printf '    "%s" -> "%s";\n' "$src" "$target"
+    dot_src=$(printf '%s' "$src" | sed 's/\\/\\\\/g; s/"/\\"/g')
+    dot_target=$(printf '%s' "$target" | sed 's/\\/\\\\/g; s/"/\\"/g')
+    printf '    "%s" -> "%s";\n' "$dot_src" "$dot_target"
 done
 
 echo "}"
