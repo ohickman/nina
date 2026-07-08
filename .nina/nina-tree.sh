@@ -66,8 +66,14 @@ done
 
 [[ -z "$TITLE" ]] && die 'Usage: nina --tree "Article Title" [--depth N | -d N]'
 
+MAX_TREE_DEPTH=10
+
 if ! [[ "$TREE_DEPTH" =~ ^[0-9]+$ ]] || (( TREE_DEPTH < 1 )); then
     die "Invalid depth: $TREE_DEPTH (must be a whole number, 1 or greater)"
+fi
+
+if (( TREE_DEPTH > MAX_TREE_DEPTH )); then
+    die "Depth $TREE_DEPTH too large (max $MAX_TREE_DEPTH) - large depths can blow up on densely linked or cyclic notes."
 fi
 
 require_index
