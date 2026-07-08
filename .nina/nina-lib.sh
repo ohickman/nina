@@ -216,6 +216,37 @@ strip_disambiguation_suffix() {
 }
 
 ###########################################
+#         PLUGIN SOURCE HANDLING          #
+###########################################
+# -----------------------------------------
+# Join backslash-newline line continuations
+# so a plugin's security checks (in
+# nina-plugin.sh and nina-doctor.sh) see AWK's
+# logical lines, not its physical lines.
+#
+# AWK honors backslash-newline continuation,
+# so `print "x" \` followed by `> "file"` on
+# the next physical line is one logical
+# statement. A line-at-a-time grep check for
+# banned print/printf redirection can be
+# blind to this: the print token and the
+# redirect operator end up on different
+# physical lines even though AWK executes
+# them as one. Both validators must scan the
+# joined form to close this gap - kept here,
+# once, so a future fix to the joining logic
+# itself only has to happen in one place.
+#
+# Input: a plugin source file path
+# Output: the file's content with backslash-
+#         newline continuations joined
+# -----------------------------------------
+
+plugin_source_logical_lines() {
+    sed ':a;/\\$/{N;s/\\\n//;ta}' "$1"
+}
+
+###########################################
 #            ARTICLE METADATA             #
 ###########################################
 # -----------------------------------------
