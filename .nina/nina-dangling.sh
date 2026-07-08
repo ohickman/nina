@@ -32,10 +32,10 @@ done < <(index_titles)
 
 while IFS=$'\t' read -r src src_canon target target_canon; do
 
-    key="$target_canon|$src"
+    key="$target_canon"$'\x1f'"$src"
 
     if [[ -z "${existing[$target_canon]}" && -z "${seen[$key]}" ]]; then
-        dangling["$target_canon"]+="$src|"
+        dangling["$target_canon"]+="$src"$'\x1f'
         seen["$key"]=1
     fi
 
@@ -62,9 +62,9 @@ printf "%-30s %-30s\n" \
 for target in "${!dangling[@]}"; do
 
     refs="${dangling[$target]}"
-    refs="${refs%|}"
+    refs="${refs%$'\x1f'}"
 
-    IFS='|' read -ra sources <<< "$refs"
+    IFS=$'\x1f' read -ra sources <<< "$refs"
 
     for src in "${sources[@]}"; do
         printf "%-30s %-30s\n" \
