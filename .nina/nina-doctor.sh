@@ -542,7 +542,8 @@ doctor_validate_plugin_file() {
         return 1
     fi
 
-    if grep -nE '(^|[^A-Za-z0-9_])print(f)?([^A-Za-z0-9_]|$)' "$file" \
+    if plugin_source_logical_lines "$file" \
+        | grep -nE '(^|[^A-Za-z0-9_])print(f)?([^A-Za-z0-9_]|$)' \
         | grep -qE '(>>?|\|)'; then
         echo "plugin uses print/printf redirection - not permitted"
         return 1
