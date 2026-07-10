@@ -56,7 +56,7 @@ A macro is supposed to handle bad input itself - if you mistype a macro's argume
 
 Occasionally a macro won't catch a bad input case and the underlying AWK process will crash instead. When that happens, rendering stops at that point - everything above the crash is still shown, but nothing below it renders. Nina prints a message explaining that rendering stopped partway through and suggesting `nina --doctor` or `nina --macro` as next steps, so you have a clear way to find and fix the macro responsible, rather than just watching the screen stop with no explanation.
 
-This is a known limitation of how macros run today, not something nina is expected to fully recover from - see [[Nina - Devs: Macros]] if you're curious why.
+This is a known limitation of how macros run today, not something nina is expected to fully recover from - see [[Nina - Devs: Macros|Nina - Devs: Macros#When a Macro Crashes at Render Time]] if you're curious why.
 
 # Uninstalling Macros and Plugins
 

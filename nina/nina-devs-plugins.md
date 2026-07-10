@@ -7,7 +7,7 @@ This is the architecture and API reference for plugins, aimed at developers - bo
 ---
 
 # Why Plugins Are a Separate System, Not an Extension of Macros
-[[Nina - Devs: Design Philosophy]] and [[Nina - Devs: Technical Guide]] both place "user-installable rendering behavior" in its own category, distinct from program logic, library logic, and configuration - the same starting point [[Nina - Devs: Macros]] argues from for macros specifically.
+[[Nina - Devs: Design Philosophy|Nina - Devs: Design Philosophy#Developer Guidelines]] and [[Nina - Devs: Technical Guide|Nina - Devs: Technical Guide#Where Logic Should Live]] both place "user-installable rendering behavior" in its own category, distinct from program logic, library logic, and configuration - the same starting point [[Nina - Devs: Macros|Nina - Devs: Macros#Why Macros Exist As Their Own Category]] argues from for macros specifically.
 A macro only ever sees the argument text typed after its own name - it cannot read another article and cannot touch the network. A plugin can do both, and can never write to anything. That's not a convention plugin authors are asked to follow; it's enforced at install time, before a plugin file is ever allowed to run.
 
 Given that bigger capability surface, plugins are written `<<name>>` rather than `{{name}}`, so the two are never ambiguous in an article's source, and a plugin's safety model is built from first principles rather than reusing the macro system's - the things that make a macro safe (it can only transform text it was handed) don't apply once network and corpus access exist.
@@ -77,7 +77,7 @@ Reasons a plugin file can be rejected by `nina --plugin`:
 
 `nina --plugin` prints the filename and reason for every plugin it rejects, and does not affect any other plugin's installation.
 
-`nina --doctor` gives a fuller health report, building its own independent copy of this same validation rather than calling `nina --plugin`'s - the same "check our own work, don't just trust the thing being checked" reasoning [[Nina - Devs: Macros]] uses for its own doctor integration. Beyond valid/invalid/installed counts, it separately reports which installed plugins reference the network or corpus-read functions, and flags the specific, easily-missed case where capable plugins exist but the corresponding config flag (`PLUGIN_PERMIT_WEB`, or `ENABLE_PLUGINS` itself) is off - a plain fact about current configuration, not a warning, since nothing is actually wrong.
+`nina --doctor` gives a fuller health report, building its own independent copy of this same validation rather than calling `nina --plugin`'s - the same "check our own work, don't just trust the thing being checked" reasoning [[Nina - Devs: Macros|Nina - Devs: Macros#When a Macro Fails to Install]] uses for its own doctor integration. Beyond valid/invalid/installed counts, it separately reports which installed plugins reference the network or corpus-read functions, and flags the specific, easily-missed case where capable plugins exist but the corresponding config flag (`PLUGIN_PERMIT_WEB`, or `ENABLE_PLUGINS` itself) is off - a plain fact about current configuration, not a warning, since nothing is actually wrong.
 
 ---
 
@@ -98,7 +98,7 @@ Two timeouts exist - `PLUGIN_TIMEOUT` for a plugin that references the network o
 
 A few hard-won lessons, in case you're changing this code rather than just using it:
 
-'''Plugin expansion must run as a separate process from rendering.''' A plugin's multi-line output gets spliced into a line as one string with embedded newlines. If expansion and rendering shared a single AWK process, the renderer's per-record, `^`-anchored styling rules (headers, bullets) would only ever fire against the first line of that string - `^` matches the true start of a string, not the start of each embedded line within it. Piping plugin expansion's output into a fresh AWK invocation forces every embedded line to be re-read as its own genuine record, which is what lets each one be styled independently. See [[Nina - Devs: Technical Guide]] for the same one-line-at-a-time constraint as it applies to the renderer generally.
+'''Plugin expansion must run as a separate process from rendering.''' A plugin's multi-line output gets spliced into a line as one string with embedded newlines. If expansion and rendering shared a single AWK process, the renderer's per-record, `^`-anchored styling rules (headers, bullets) would only ever fire against the first line of that string - `^` matches the true start of a string, not the start of each embedded line within it. Piping plugin expansion's output into a fresh AWK invocation forces every embedded line to be re-read as its own genuine record, which is what lets each one be styled independently. See [[Nina - Devs: Technical Guide|Nina - Devs: Technical Guide#Rendering]] for the same one-line-at-a-time constraint as it applies to the renderer generally.
 
 '''Environment variables are not AWK globals.''' Values passed to a plugin's subprocess as shell environment variables (current title, current file, the date/time) are only reachable via `ENVIRON["NAME"]` inside that subprocess - never as a bare global of the same name. A bare global is only populated by `-v` on that specific invocation. Getting this backwards produces no error - every affected function just silently returns an empty string.
 

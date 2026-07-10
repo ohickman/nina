@@ -53,7 +53,7 @@ If the index is lost, corrupted, or deleted, the system should be able to regene
 
 This design removes the risk of catastrophic data loss and keeps the storage model simple.
 
-The same principle is why macro and plugin manifests work the way they do - see [[Nina - Devs: Macros]] and [[Nina - Devs: Plugins]].
+The same principle is why macro and plugin manifests work the way they do - see [[Nina - Devs: Macros|Nina - Devs: Macros#The Source-to-Artifact Pattern]] and [[Nina - Devs: Plugins|Nina - Devs: Plugins#Validation and the Hash Check]].
 
 ---
 
@@ -66,7 +66,7 @@ Scripts should avoid modifying article content unless explicitly requested by th
 
 When a change must be made automatically, it should be minimal, transparent, and easy for a user to undo manually.
 
-A handful of narrow, user-confirmed exceptions exist today (filename disambiguation on a collision, replacing a title line during interactive repair, `nina --resync` renaming a file the user explicitly selected). See [[Nina - Devs: Technical Guide]] for the current list - this document states the principle a feature should be measured against, not an inventory of every exception.
+A handful of narrow, user-confirmed exceptions exist today (filename disambiguation on a collision, replacing a title line during interactive repair, `nina --resync` renaming a file the user explicitly selected). See [[Nina - Devs: Technical Guide|Nina - Devs: Technical Guide#Scripts Do Not Mutate User Content - With Narrow, Confirmed Exceptions]] for the current list - this document states the principle a feature should be measured against, not an inventory of every exception.
 
 ---
 
@@ -112,7 +112,7 @@ This design keeps the system:
 * portable
 * easy to reason about
 
-Some Markdown features may therefore be approximated rather than fully implemented. This trade-off is intentional. See [[Nina - Devs: Technical Guide]] for what this means concretely for the renderer.
+Some Markdown features may therefore be approximated rather than fully implemented. This trade-off is intentional. See [[Nina - Devs: Technical Guide|Nina - Devs: Technical Guide#Rendering]] for what this means concretely for the renderer.
 
 ---
 
@@ -127,7 +127,7 @@ Instead of halting execution, the program should:
 * provide tools to diagnose and repair issues
 This ensures that one damaged article does not render the entire system unusable.
 
-This same instinct extends to user-installed extensions: an unrecognized macro or plugin call, or one that fails outright, is left as the literal text it was written as - never an error, never silently replaced with nothing. See [[Nina - Devs: Macros]] and [[Nina - Devs: Plugins]].
+This same instinct extends to user-installed extensions: an unrecognized macro or plugin call, or one that fails outright, is left as the literal text it was written as - never an error, never silently replaced with nothing. See [[Nina - Devs: Macros|Nina - Devs: Macros#:~:text=unrecognized macro name is left as literal text]] and [[Nina - Devs: Plugins|Nina - Devs: Plugins#Failure Handling]].
 
 ---
 

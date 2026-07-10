@@ -82,7 +82,9 @@ Articles may reference each other using wiki-style links:
 ```[[Target Article]]
 ```[[Display Text|Target Article]]
 
-These links are parsed by scanning article content and extracting the target titles. From this information the system can compute backlinks, orphan articles, dangling links, and link graphs.
+A target may carry an anchor - `[[Target Article#Heading]]` or `[[Target Article#:~:text=phrase]]` - which affects only where `nina` opens the article, not how the link itself is parsed. Since titles have no character restrictions, the whole target is always tried as a literal title first; it's only split into title-plus-anchor if that fails. Every consumer that reads links (`nina-view.sh`, `nina-dangling.sh`, `nina-backlinks.sh`, `nina-orphan.sh`, `nina-graph.sh`, `nina-stats.sh`, and the plugin helper's `--backlinks` verb) implements this same backward split independently rather than through one shared library function - each has a different performance shape (a one-shot lookup vs. a hot loop over every link in the corpus), and a small, duplicated, well-commented loop won out over a single abstraction trying to serve both shapes at once. The reasoning for each is in the comments at the top of the relevant block, not repeated here.
+
+These links are parsed by scanning article content and extracting the target titles. From this information the system can compute backlinks, orphan articles, dangling links, and link graphs - all anchor-aware, resolving a target like `Title#Heading` down to `Title` before comparing it against anything else.
 
 ---
 

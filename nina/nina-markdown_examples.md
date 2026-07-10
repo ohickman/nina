@@ -4,13 +4,13 @@
 - Alias: markdown
 
 # Text deccoration
-**Bold**                    `'''Bold'''`, `**Bold**`
-''Italic''                  `''Italic''`, `\\Italic\\`, `*Italic*`
-__Underline__               `__Underline__`
-~~Strikeout~~               `~~Strikeout~~`
-==Highlight==               `==Highlight==`
-++Added++                   `++Added++`
---Removed--                 `--Removed--`
+**Bold**                           `'''Bold'''`, `**Bold**`
+''Italic''                         `''Italic''`, `\\Italic\\`, `*Italic*`
+__Underline__                      `__Underline__`
+~~Strikeout~~                      `~~Strikeout~~`
+==Highlight==                      `==Highlight==`
+++Added++                          `++Added++`
+--Removed--                        `--Removed--`
 
 # Unparsed Text
 `Code` Bracketed in single backtick
@@ -18,16 +18,19 @@ __Underline__               `__Underline__`
 ```Full line code ==highlight== ~~strike~~ preceeded by three backticks
 ```
 # Links
-[[link]]                    `[[link]]`
-[[display|link]]                 `[[display|link]]`
-[external](example.com)  `[external](example.com)`
+[[link]]                           `[[link]]`
+[[display|link]]                        `[[display|link]]`
+[[link#header]]                    `[[link#header]]`
+[[link#:~:text=target text]]       `[[link#:~:text=target text]]`
+[[display|link#header]]                        `[[display|link#header]]`
+[external](example.com)         `[external](example.com)`
 
 # HTML Characters
 Most named characters supported
-&forall;   `\&forall;`            &part;   `\&part;`
-&exist;   `\&exist;`             &sum;   `\&sum;`
-&radic;   `\&radic;`             &there4;   `\&there4;`
-&fnof;   `\&fnof;`              &real;   `\&real;`
+&forall;   `\&forall;`                   &part;   `\&part;`
+&exist;   `\&exist;`                    &sum;   `\&sum;`
+&radic;   `\&radic;`                    &there4;   `\&there4;`
+&fnof;   `\&fnof;`                     &real;   `\&real;`
 
 # Macros
 `{{| 75% 30}}`:                  {{| 75 30}} /% 2nd argument (width) optional, % also optional. %/

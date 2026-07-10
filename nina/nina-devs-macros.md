@@ -7,7 +7,7 @@ This is the authoring and architecture reference for macros, aimed at developers
 ---
 
 # Why Macros Exist As Their Own Category
-[[Nina - Devs: Design Philosophy]] and [[Nina - Devs: Technical Guide]] both place "user-installable rendering behavior" in its own category, distinct from program logic, library logic, and configuration. A macro is executable code, like a script, but it's meant to be written and installed by a user rather than a developer, and its reach is deliberately narrow: a macro only ever sees the argument text typed after its own name. It cannot read other articles, cannot reach the network, and has no access to program state. [[Nina - Devs: Plugins]] exists precisely because that narrowness is sometimes too limiting - a plugin is the answer when a macro's reach genuinely isn't enough.
+[[Nina - Devs: Design Philosophy|Nina - Devs: Design Philosophy#Developer Guidelines]] and [[Nina - Devs: Technical Guide|Nina - Devs: Technical Guide#Where Logic Should Live]] both place "user-installable rendering behavior" in its own category, distinct from program logic, library logic, and configuration. A macro is executable code, like a script, but it's meant to be written and installed by a user rather than a developer, and its reach is deliberately narrow: a macro only ever sees the argument text typed after its own name. It cannot read other articles, cannot reach the network, and has no access to program state. [[Nina - Devs: Plugins]] exists precisely because that narrowness is sometimes too limiting - a plugin is the answer when a macro's reach genuinely isn't enough.
 
 # The Source-to-Artifact Pattern
 Macros follow the same pattern as the index: validating every macro file on every render would be wasteful, so validation happens only when explicitly requested, via `nina --macro`, never automatically.
@@ -69,7 +69,7 @@ This means input validation is the macro author's responsibility, not something 
 ```    return "{{gauge: non-numeric value - usage: {{gauge value min ...}}}}"
 ```}
 
-nina still detects the case where a macro crashes anyway - see [[Nina - User: Macros and Plugins]] for what the user sees when that happens - but that's a backstop, not a substitute for validating input in the macro itself. A macro that validates its own arguments degrades gracefully; a macro that doesn't can take down the entire render with it.
+nina still detects the case where a macro crashes anyway - see [[Nina - User: Macros and Plugins|Nina - User: Macros and Plugins#If a Macro Crashes]] for what the user sees when that happens - but that's a backstop, not a substitute for validating input in the macro itself. A macro that validates its own arguments degrades gracefully; a macro that doesn't can take down the entire render with it.
 
 ## A note on helper functions
 
@@ -89,7 +89,7 @@ Reasons a macro file can be rejected:
 * '''Duplicate macro name.''' Two files declare the same name. Neither loads until one is renamed or removed.
 * '''Duplicate function name.''' Two files derive the same function name from their filenames (`progress-bar.awk` and `progress_bar.awk` both derive `macro_progress_bar`). Neither loads until one is renamed.
 
-`nina --doctor` gives a fuller health report, including macros that have changed on disk since `nina --macro` was last run - it duplicates `nina --macro`'s validation logic independently on purpose, rather than calling it, the same reasoning as in [[Nina - Devs: Plugins]] for why its health check is built the same way.
+`nina --doctor` gives a fuller health report, including macros that have changed on disk since `nina --macro` was last run - it duplicates `nina --macro`'s validation logic independently on purpose, rather than calling it, the same reasoning as in [[Nina - Devs: Plugins|Nina - Devs: Plugins#Validation and the Hash Check]] for why its health check is built the same way.
 
 ---
 
@@ -97,7 +97,7 @@ Reasons a macro file can be rejected:
 
 Install-time validation (`nina --macro`) and render-time failure are two different things. A macro can pass every install-time check - valid syntax, correct name, correct function - and still crash later if it's given input it didn't account for, because validation only confirms the file is well-formed AWK, not that its logic handles every possible argument string.
 
-`nina-render.awk` runs as a single AWK process alongside every loaded macro file, so there is no per-macro isolation: a fatal error in any one macro's function kills that whole process. There's no `try`/`catch` in AWK and no way for nina to intercept the failure and resume rendering from the next line - the renderer's design is a deliberate single-pass pipeline (see [[Nina - Devs: Technical Guide]]), and adding per-macro isolation would mean spawning a subprocess per `{{...}}` call or splitting macro expansion into a separate pre-pass, either of which trades away the simplicity and performance of the current design for a failure mode that's better prevented than caught (see the validation note above).
+`nina-render.awk` runs as a single AWK process alongside every loaded macro file, so there is no per-macro isolation: a fatal error in any one macro's function kills that whole process. There's no `try`/`catch` in AWK and no way for nina to intercept the failure and resume rendering from the next line - the renderer's design is a deliberate single-pass pipeline (see [[Nina - Devs: Technical Guide|Nina - Devs: Technical Guide#Rendering]]), and adding per-macro isolation would mean spawning a subprocess per `{{...}}` call or splitting macro expansion into a separate pre-pass, either of which trades away the simplicity and performance of the current design for a failure mode that's better prevented than caught (see the validation note above).
 
 What nina does instead: `nina-render.sh` checks the AWK process's exit status after the pipeline finishes. A non-zero exit means something crashed mid-render, and nina prints a message via the same `error()` function used elsewhere for unrecoverable problems, pointing the user at `nina --doctor` and `nina --macro` as next steps. This doesn't recover the lost output - whatever rendered before the crash stays on screen, whatever was after it is simply never shown - but it replaces a silent, unexplained stop with a clear signal that something went wrong and where to look.
 
