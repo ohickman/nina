@@ -60,6 +60,18 @@ Each article is stored as an individual Markdown file.
 Path to the tab-separated index file.
 
 .TP
+.B ALIAS_INDEX_FILE
+Path to the tab-separated alias index file, mapping each alias to
+the real title it resolves to. Derived data, rebuilt by
+.BR "nina --index" .
+Has no effect if
+.B ENABLE_ALIASES
+is false. Defaults to a file named
+.I index-alias.tsv
+alongside
+.BR INDEX_FILE .
+
+.TP
 .B ARCHIVE_DIR
 Directory articles are moved to when removed, if
 .B REMOVE_MODE
@@ -116,6 +128,21 @@ or
 .BR choose
 (prompt at runtime for each removal). This is a string value,
 not a boolean.
+
+.TP
+.B ENABLE_ALIASES
+Enable alias resolution. When on, the indexer builds a
+secondary alias index from any
+.B "- Alias:"
+header lines in an article, letting that article be opened,
+linked to, and tab-completed under the alternate name(s) as well
+as its real title. A real title always takes precedence over an
+alias with the same name; an alias claimed by more than one
+article is dropped. Off by default. See
+.BR nina (1)
+for the
+.B "- Alias:"
+header field.
 
 .TP
 .B ENABLE_MACROS
@@ -179,6 +206,7 @@ H1_STYLE="\\033[1;4;15m"
 HR_SYMBOL="┈"
 HR_STYLE="\\033[38;5;60m"
 TREE_CENTER_STYLE="\\033[1m"
+TAG_GRAPH_HEADER_STYLE="\\033[1m"
 .fi
 .RE
 
@@ -193,6 +221,15 @@ output (see
 It works the same as any other style variable here - set it to a
 different ANSI sequence, or to an empty string for no styling at
 all.
+
+.B TAG_GRAPH_HEADER_STYLE
+is applied to each group heading (a tag name, or an island number) in
+.BR "nina --tag-graph" 's
+.B --tree
+output (see
+.BR nina (1)).
+Same rules as
+.BR TREE_CENTER_STYLE .
 
 .SH TERMINAL BEHAVIOR
 .B nina

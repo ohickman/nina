@@ -78,26 +78,82 @@ newest=$(awk -F'\t' 'NR==1 || $4 > max { max=$4 } END { print max }' "$INDEX_FIL
 #   1. Build the set of indexed canonical titles once, using the stream
 #      form of canonical_title() - a single pipeline pass with no
 #      per-row subprocess forks.
+#   1b. Build a map of existing aliases to the real title they resolve
+#      to (through alias_titles()/alias_lookup(), the only sanctioned
+#      reader of index-alias.tsv's format - not a raw read here).
 #   2. Call scan_links exactly once.
 #   3. Derive both counts from that one pass.
 #
-# Orphan:   an indexed article whose canonical title never appears as a
-#           link target in any article.
-# Dangling: a unique link target whose canonical form doesn't match any
-#           indexed article's canonical title.
+# Orphan:   an indexed article whose canonical title never appears -
+#           directly, or as the resolved title of an anchored/aliased
+#           link (see below) - as a link target in any article.
+# Dangling: a unique link target that, after the same anchor-split
+#           attempt, still matches no indexed article's canonical
+#           title.
+#
+# A link target like "Title#Heading" only equals its own target_canon
+# as a whole, never the real title's canonical form on its own - so a
+# target's own canonical form is tried first, unsplit, exactly the
+# original single hash lookup, same cost as before for the common
+# case. Only a target that both contains '#' and fails that lookup
+# walks backward through its anchor split (same algorithm as
+# nina-view.sh, nina-dangling.sh, nina-backlinks.sh, and nina-graph.sh),
+# stopping at the first (longest) prefix that resolves to a real title
+# or alias. A target with no '#' at all never enters that branch, so
+# this stays a single hash lookup per link exactly as before for the
+# corpus's ordinary, non-anchored links.
 # -----------------------------------------
 
 # Step 1: index every article's canonical title
-declare -A _idx _ref _dangle
+declare -A _idx _ref _dangle _alias
 
 while IFS= read -r _canon; do
     _idx["$_canon"]=1
 done < <(cut -d$'\t' -f2 "$INDEX_FILE" | canonical_title)
 
+# Step 1b: index every alias's real-title canonical form
+while IFS= read -r _alias_name; do
+    _a_canon="$(canonical_title "$_alias_name")"
+    _a_title="$(alias_lookup "$_a_canon")"
+    [[ -n "$_a_title" ]] && _alias["$_a_canon"]="$(canonical_title "$_a_title")"
+done < <(alias_titles)
+
 # Step 2 & 3: single scan_links pass, accumulate both counts
 while IFS=$'\t' read -r _src _src_c _tgt _tgt_c; do
-    _ref["$_tgt_c"]=1
-    [[ -z "${_idx[$_tgt_c]:-}" ]] && _dangle["$_tgt_c"]=1
+
+    _resolved="$_tgt_c"
+    _is_dangling=true
+
+    if [[ -n "${_idx[$_tgt_c]:-}" ]]; then
+        _is_dangling=false
+    elif [[ "$_tgt" == *"#"* ]]; then
+        _remaining="${_tgt%#*}"
+        while true; do
+            _cand="$(canonical_title "$_remaining")"
+
+            if [[ -n "${_idx[$_cand]:-}" ]]; then
+                _resolved="$_cand"
+                _is_dangling=false
+                break
+            fi
+
+            if [[ -n "${_alias[$_cand]:-}" ]]; then
+                _resolved="${_alias[$_cand]}"
+                _is_dangling=false
+                break
+            fi
+
+            [[ "$_remaining" == *"#"* ]] || break
+            _remaining="${_remaining%#*}"
+        done
+    fi
+
+    if [[ "$_is_dangling" == false ]]; then
+        _ref["$_resolved"]=1
+    else
+        _dangle["$_tgt_c"]=1
+    fi
+
 done < <(scan_links)
 
 # Orphans: indexed articles never referenced as a link target
@@ -108,7 +164,8 @@ done
 
 dangling_count="${#_dangle[@]}"
 
-unset _idx _ref _dangle _src _src_c _tgt _tgt_c _canon
+unset _idx _ref _dangle _alias _src _src_c _tgt _tgt_c _canon \
+      _alias_name _a_canon _a_title _resolved _is_dangling _remaining _cand
 
 # -----------------------------------------
 # Installed macros

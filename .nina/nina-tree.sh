@@ -101,6 +101,42 @@ CENTER_DISPLAY="$(normalize_display_title "$(header_field "$(read_header "$FILE"
 CENTER_CANON="$(canonical_title "$CENTER_DISPLAY")"
 
 # -----------------------------------------
+# Build canonical -> display title map, and a
+# map of existing aliases to the real title
+# they resolve to.
+#
+# Same reason as nina-dangling.sh /
+# nina-backlinks.sh / nina-orphan.sh /
+# nina-graph.sh / nina-stats.sh: a link target
+# like "Other Article#Heading" only equals
+# target_canon as a whole, not the real
+# article's own canonical form, so an anchored
+# link would otherwise key OUT_D/IN_D/EDGE_SET
+# on "other article#heading" - a disconnected
+# node instead of folding into the real
+# article's existing edges. Built through
+# index_titles()/alias_titles()/alias_lookup()
+# rather than reading index-alias.tsv directly,
+# and never resolve_article_file() in the loop
+# below, per the same reasoning as those five
+# scripts. One pass at startup, not per link.
+# -----------------------------------------
+
+declare -A canonical_to_title
+declare -A alias_to_title
+
+while IFS= read -r title; do
+    canonical="$(canonical_title "$title")"
+    canonical_to_title["$canonical"]="$title"
+done < <(index_titles)
+
+while IFS= read -r alias_name; do
+    alias_canon="$(canonical_title "$alias_name")"
+    real_title="$(alias_lookup "$alias_canon")"
+    [[ -n "$real_title" ]] && alias_to_title["$alias_canon"]="$(canonical_title "$real_title")"
+done < <(alias_titles)
+
+# -----------------------------------------
 # Load the whole link graph in one scan_links
 # pass (see "scan_links Is a Single-Pass AWK
 # Function" in the AI programming guide - a
@@ -120,12 +156,46 @@ CENTER_CANON="$(canonical_title "$CENTER_DISPLAY")"
 # normalized title, so it can't collide the way a
 # printable separator like "|" or "->" theoretically
 # could if a title ever contained it literally.
+#
+# t_disp/t_canon are resolved to the real
+# article they point to - same backward-anchor-
+# split as the other five scripts - BEFORE any
+# of the three inserts below, so OUT_D, IN_D and
+# EDGE_SET stay consistent with each other rather
+# than each doing its own (possibly divergent)
+# resolution. s_canon is never split: scan_links'
+# source side is always an article's own stored
+# title, which can't carry an anchor - only a
+# link's target text can.
 # -----------------------------------------
 
 declare -A OUT_D IN_D EDGE_SET
 
 while IFS=$'\t' read -r s_disp s_canon t_disp t_canon; do
     [[ -z "$s_canon" ]] && continue
+
+    if [[ -z "${canonical_to_title[$t_canon]}" && "$t_disp" == *"#"* ]]; then
+        remaining="${t_disp%#*}"
+        while true; do
+            candidate_canon="$(canonical_title "$remaining")"
+
+            if [[ -n "${canonical_to_title[$candidate_canon]}" ]]; then
+                t_canon="$candidate_canon"
+                t_disp="${canonical_to_title[$candidate_canon]}"
+                break
+            fi
+
+            if [[ -n "${alias_to_title[$candidate_canon]}" ]]; then
+                t_canon="${alias_to_title[$candidate_canon]}"
+                t_disp="${canonical_to_title[$t_canon]}"
+                break
+            fi
+
+            [[ "$remaining" == *"#"* ]] || break
+            remaining="${remaining%#*}"
+        done
+    fi
+
     OUT_D["$s_canon"]+="$t_disp"$'\t'"$t_canon"$'\n'
     IN_D["$t_canon"]+="$s_disp"$'\t'"$s_canon"$'\n'
     EDGE_SET["$s_canon"$'\x1f'"$t_canon"]=1

@@ -45,9 +45,21 @@ metadata header:
 * Author: Name
 * Tags: tag1 tag2 tag3
 * Date: YYYY-MM-DD
+* Alias: alternate name
 .fi
 
 Only the title line is required. All other fields are optional.
+
+A
+.B "- Alias:"
+line lets the article be opened, linked to, and tab-completed
+under an alternate name as well as its real title. An article
+may have more than one, one per
+.B "- Alias:"
+line. Off by default; see
+.BR ENABLE_ALIASES
+in
+.BR nina_conf (5).
 
 The remainder of the file contains standard Markdown text.
 
@@ -178,6 +190,78 @@ Display only the number of dangling links.
 Output a graph representation of article links suitable for Graphviz.
 
 .TP
+.BR --tag-graph " " { cooccur , links , islands } " [" --table | --tree | --tsv | --dot ] " [" --top \ N ] " [" --min \ N ] " [" --tag \ TAG ]
+Show how tags relate to each other, in one of three ways:
+.RS
+.TP
+.B cooccur
+Tag pairs frequently applied to the
+.I same
+article together, regardless of any links between articles.
+.TP
+.B links
+Tag-to-tag rollup of the article link graph
+.RB ( --graph 's
+data): for every real link, every tag on the source article is paired
+with every tag on the target article. A tag paired with itself means
+articles carrying that tag tend to link to other articles carrying
+the same tag.
+.TP
+.B islands
+Connected components of the article link graph, links treated as
+undirected for reachability. A component with no path - in either
+direction, through any chain of links - to any other component is an
+island. With
+.BR --tag ,
+only the subgraph of articles carrying that tag is considered, e.g.
+whether all "c++" articles form one connected web or several separate
+pockets.
+.RE
+
+.RS
+.TP
+.BR --table
+Readable summary table in the terminal (default).
+.TP
+.BR --tree
+A boxed, tree-style listing similar to
+.BR --tree 's
+own output.
+.TP
+.BR --tsv
+Plain tab-separated rows, for piping into other tools.
+.TP
+.BR --dot
+Graphviz source, same convention as
+.BR --graph .
+.TP
+.BR --top " N"
+Cap the number of rows (or, for
+.BR islands ,
+components) shown, ranked by count/size descending.
+.I N
+= 0 for unlimited. Default 25.
+.TP
+.BR --min " N"
+Only show pairs/edges with at least
+.I N
+occurrences, or (for
+.BR islands )
+components of at least
+.I N
+articles. Default 1, except
+.B islands
+defaults to 2, since a component of one article is an ordinary
+orphan rather than an island; pass
+.B --min 1
+to include singletons.
+.TP
+.BR --tag " TAG"
+Restrict the view to pairs, edges, or a subgraph involving
+.IR TAG .
+.RE
+
+.TP
 .BR --tree " TITLE " [ --depth \ N " | " -d \ N ]
 Display a link-graph map centered on
 .IR TITLE :
@@ -231,6 +315,16 @@ Display statistics describing the knowledge base.
 .TP
 .BR -i ", " --index
 Rebuild the article index from the Markdown files.
+
+.TP
+.BR --file-name " TITLE"
+Print the file path of the article matching
+.IR TITLE ,
+and nothing else, for composing with other commands, e.g.
+.BR mv "(1)."
+Resolves by real title only; an alias is not accepted. Exits
+non-zero, printing nothing to stdout, if there is no match or
+more than one.
 
 .TP
 .BR --remove " [\"ARTICLE TITLE\"]"
@@ -537,6 +631,12 @@ Rebuild the article index:
 
 .nf
 nina --index
+.fi
+
+Print an article's file path, for composing with other tools:
+
+.nf
+nina --file-name "Project Ideas"
 .fi
 
 Run system diagnostics:

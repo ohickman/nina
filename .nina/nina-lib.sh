@@ -125,7 +125,23 @@ canonical_title() {
     # it. A literal multi-byte character used outside a bracket expression
     # is still matched as a contiguous byte sequence regardless of locale,
     # which is why this form is safe everywhere the bracket form was not.
-    printf '%s' "$stream" \
+    # $(cat) above strips every trailing newline from piped stream
+    # input, and this pipeline never adds one back - so the stream
+    # form's last output line was never newline-terminated. Harmless
+    # to every current caller that reads the result via $(...)
+    # (command substitution strips trailing newlines anyway, single-
+    # argument callers use exactly one), but a genuine bug for a
+    # `while read` loop consuming the stream form directly: bash's
+    # `read` returns non-zero on a final line with no trailing
+    # newline, which ends the loop *before* running its body for
+    # that line, silently dropping the corpus's last title. Restoring
+    # the newline is guarded on non-empty input so genuinely empty
+    # input still produces empty output, unchanged from today - $(cat)
+    # can't distinguish "no lines" from "only a trailing newline", and
+    # this isn't the place to resolve that.
+    if [[ -n "$stream" ]]; then
+        printf '%s\n' "$stream"
+    fi \
         | sed 's/[[:space:]]\+/ /g' \
         | sed 's/^ //; s/ $//' \
         | sed 's/–/-/g; s/—/-/g; s/−/-/g' \
@@ -1354,6 +1370,180 @@ dealias_canonical() {
     else
         printf '%s\n' "$canonical"
     fi
+}
+
+###########################################
+#     ANCHOR / DEEP-LINK RESOLUTION       #
+###########################################
+#
+# A "Title#Anchor" string - a scanned [[link]] target, or a
+# user-typed `nina "Title#Anchor"` query - cannot be split on
+# sight: canonical_title() places no restriction on '#', so a
+# real title may legitimately contain one (e.g. "C# Tricks").
+# The only reliable signal is whether a candidate resolves
+# against the real index, so every consumer that supports
+# anchors walks backward through each '#' in the string, from
+# none removed to all of them, testing the growing prefix each
+# time and stopping at the first (and therefore longest) match.
+# The whole string is always tried first, unsplit, so a title
+# that legitimately contains '#' always wins outright over any
+# anchor interpretation.
+#
+# This exact walk is needed by nina-view (resolving what the
+# user typed), nina-dangling, nina-backlinks, nina-orphan, and
+# nina-graph (each resolving a scanned link's target against
+# the corpus). The two functions below are the single shared
+# implementation of that walk; no caller should re-derive it.
+
+# -----------------------------------------
+# Always-empty associative array, used as
+# resolve_split_target()'s default alias map so
+# a caller with no alias map to offer can omit
+# the argument entirely rather than having to
+# declare and pass an empty array of its own.
+# -----------------------------------------
+declare -gA _NINA_EMPTY_MAP=()
+
+# -----------------------------------------
+# build_title_maps <title_map_name> [<alias_map_name>]
+#
+# Populates the caller's associative arrays (passed by name -
+# bash nameref, so the caller must `declare -A` them first)
+# with the corpus-wide lookups every anchor-splitting consumer
+# previously rebuilt independently:
+#
+#   title_map_name[canonical title]  = display title
+#   alias_map_name[canonical alias]  = canonical form of the
+#                                       real title it resolves to
+#
+# title_map_name is built through canonical_title's stream
+# form - one pass over the whole title column, rather than one
+# fork per title - matching the efficiency canonical_title's
+# own header comment recommends for exactly this situation.
+#
+# alias_map_name is optional; omit it for a caller that only
+# ever needs real titles. When given, it costs one forking
+# alias_lookup() call per alias (the corpus typically has few),
+# and degrades to leaving the map untouched when aliases are
+# disabled or the alias index is absent - alias_titles() itself
+# already prints nothing in that case, so the loop body simply
+# never runs.
+# -----------------------------------------
+build_title_maps() {
+    local -n _btm_title_map="$1"
+    local _alias_map_name="${2:-}"
+
+    local canonical title
+    while IFS=$'\t' read -r canonical title; do
+        _btm_title_map["$canonical"]="$title"
+    done < <(paste <(index_titles | canonical_title) <(index_titles))
+
+    [[ -n "$_alias_map_name" ]] || return 0
+
+    local -n _btm_alias_map="$_alias_map_name"
+    local alias_name alias_canon real_title
+    while IFS= read -r alias_name; do
+        alias_canon="$(canonical_title "$alias_name")"
+        real_title="$(alias_lookup "$alias_canon")"
+        [[ -n "$real_title" ]] && _btm_alias_map["$alias_canon"]="$(canonical_title "$real_title")"
+    done < <(alias_titles)
+}
+
+# -----------------------------------------
+# resolve_split_target <raw> <raw_canon> <title_map_name> [<alias_map_name>]
+#
+# The shared backward-walk described above. <raw> is the full
+# "Title" or "Title#Anchor" string as typed or scanned,
+# verbatim. <raw_canon> is its own whole-string canonical form -
+# scan_links already computes this for a scanned link
+# (target_canon); a fresh `canonical_title "$raw"` call supplies
+# it for a typed query - passed in rather than recomputed here
+# so the zero-split common case costs no extra fork. title_map_name
+# and alias_map_name are arrays already populated by
+# build_title_maps(); alias_map_name may be omitted, in which
+# case only real titles are considered.
+#
+# Deliberately reports its result through global variables
+# rather than printing, and must therefore be called directly -
+# `resolve_split_target ...` - never wrapped in a command
+# substitution like `x="$(resolve_split_target ...)"`. Command
+# substitution forks a subshell in bash even when the function
+# body itself forks nothing, which would reintroduce, once per
+# call, exactly the per-link forking cost this function exists
+# to eliminate for its hot-loop callers (nina-dangling,
+# nina-backlinks, nina-orphan, nina-graph all call this once per
+# link in a corpus-wide scan). Every lookup in the walk is a
+# plain in-memory array access - nothing here forks at all
+# except canonical_title() on each further candidate once a '#'
+# split is actually being tried, exactly the cost the original
+# per-script implementations already paid.
+#
+# On success, sets the following and returns 0:
+#   NINA_SPLIT_CANON   - the real article's own canonical form
+#                         (never an alias's)
+#   NINA_SPLIT_DISPLAY - the real article's display title
+#   NINA_SPLIT_PREFIX  - the exact substring of <raw> that
+#                         resolved, verbatim casing, before
+#                         canonicalization. nina-view uses this
+#                         to carry the user's original typing
+#                         forward into resolve_article_file
+#                         rather than losing case here.
+#   NINA_SPLIT_ANCHOR  - the trailing text after
+#                         NINA_SPLIT_PREFIX, empty when the
+#                         whole input matched unsplit (the
+#                         common case)
+#
+# On failure - no prefix of <raw> resolves at all, against
+# either map - all four are left empty and the function returns
+# 1. These are transient output, valid only until the next call;
+# a caller in a loop must consume them before calling again.
+# -----------------------------------------
+resolve_split_target() {
+    local raw="$1" raw_canon="$2" _title_map_name="$3" _alias_map_name="${4:-_NINA_EMPTY_MAP}"
+    local -n _rst_title_map="$_title_map_name"
+    local -n _rst_alias_map="$_alias_map_name"
+
+    local remaining="$raw" remaining_canon="$raw_canon"
+    local anchor="" last_part alias_target
+
+    NINA_SPLIT_CANON=""
+    NINA_SPLIT_DISPLAY=""
+    NINA_SPLIT_PREFIX=""
+    NINA_SPLIT_ANCHOR=""
+
+    while true; do
+
+        if [[ -n "${_rst_title_map[$remaining_canon]:-}" ]]; then
+            NINA_SPLIT_CANON="$remaining_canon"
+            NINA_SPLIT_DISPLAY="${_rst_title_map[$remaining_canon]}"
+            NINA_SPLIT_PREFIX="$remaining"
+            NINA_SPLIT_ANCHOR="$anchor"
+            return 0
+        fi
+
+        if [[ -n "${_rst_alias_map[$remaining_canon]:-}" ]]; then
+            alias_target="${_rst_alias_map[$remaining_canon]}"
+            NINA_SPLIT_CANON="$alias_target"
+            NINA_SPLIT_DISPLAY="${_rst_title_map[$alias_target]:-}"
+            NINA_SPLIT_PREFIX="$remaining"
+            NINA_SPLIT_ANCHOR="$anchor"
+            return 0
+        fi
+
+        [[ "$remaining" == *"#"* ]] || break
+
+        last_part="${remaining##*#}"
+        if [[ -z "$anchor" ]]; then
+            anchor="$last_part"
+        else
+            anchor="${last_part}#${anchor}"
+        fi
+        remaining="${remaining%#*}"
+        remaining_canon="$(canonical_title "$remaining")"
+
+    done
+
+    return 1
 }
 
 # -----------------------------------------

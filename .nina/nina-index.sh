@@ -174,7 +174,7 @@ mv "$TMP_INDEX" "$INDEX_FILE" || die "[ERROR] Failed to write index."
     "$SCRIPT_DIR/nina-completion.sh"
 
 # -----------------------------------------
-# Build the alias index (BETA - ENABLE_ALIASES)
+# Build the alias index (ENABLE_ALIASES)
 #
 # Maps each live alias to the real title it resolves to,
 # one "alias<TAB>title" row per alias. It is consumed only

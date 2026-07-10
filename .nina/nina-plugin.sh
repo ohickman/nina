@@ -323,15 +323,15 @@ mv "${TMP_MANIFEST}.headed" "$TMP_MANIFEST"
 
 mv "$TMP_MANIFEST" "$MANIFEST_FILE" || die "Failed to write plugin manifest."
 
-echo "Plugin manifest updated successfully."
+info "$MANIFEST_ROWS plugin(s) installed."
 
 if (( SKIP_COUNT > 0 )); then
-    echo "$SKIP_COUNT plugin(s) skipped due to errors."
+    info "$SKIP_COUNT plugin(s) skipped due to errors."
 fi
 
 if (( ${#SKIPPED_FILES[@]} > 0 )); then
     echo
-    info "Files skipped:"
+    echo "Files skipped:"
     for i in "${!SKIPPED_FILES[@]}"; do
         echo "  ${SKIPPED_FILES[$i]} (${SKIPPED_REASONS[$i]})"
     done

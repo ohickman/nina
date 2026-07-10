@@ -46,8 +46,64 @@ canonical_target="$(dealias_canonical "$canonical_target")"
 case "$VERB" in
 
     --backlinks)
+        # Same exact-match gap nina-backlinks.sh had, same fix: a
+        # target's own canonical form is tried first, unsplit -
+        # identical cost to before for the common case, including
+        # every other verb below, which never touches these two
+        # arrays at all. Only a target that both contains '#' and
+        # fails that check walks its anchor split, exactly as
+        # nina-view.sh/nina-dangling.sh/nina-backlinks.sh/
+        # nina-orphan.sh/nina-graph.sh do, built through
+        # alias_titles()/alias_lookup() rather than reading
+        # index-alias.tsv directly, per alias_lookup's own header
+        # comment naming itself the only sanctioned reader of that
+        # file's format. Worth being careful here specifically -
+        # this runs inside a plugin's own timeout budget, so
+        # forking canonical_title for every link regardless of
+        # whether it needs it would eat into that budget for
+        # nothing.
+        declare -A existing
+        declare -A alias_to_title
+
+        while IFS= read -r title; do
+            canonical="$(canonical_title "$title")"
+            existing["$canonical"]=1
+        done < <(index_titles)
+
+        while IFS= read -r alias_name; do
+            alias_canon="$(canonical_title "$alias_name")"
+            real_title="$(alias_lookup "$alias_canon")"
+            [[ -n "$real_title" ]] && alias_to_title["$alias_canon"]="$(canonical_title "$real_title")"
+        done < <(alias_titles)
+
         while IFS=$'\t' read -r src src_canon target target_canon; do
-            [[ "$target_canon" == "$canonical_target" ]] && printf '%s\n' "$src"
+
+            is_match=false
+
+            if [[ "$target_canon" == "$canonical_target" ]]; then
+                is_match=true
+            elif [[ "$target" == *"#"* ]]; then
+                remaining="${target%#*}"
+                while true; do
+                    candidate_canon="$(canonical_title "$remaining")"
+
+                    if [[ -n "${existing[$candidate_canon]}" ]]; then
+                        [[ "$candidate_canon" == "$canonical_target" ]] && is_match=true
+                        break
+                    fi
+
+                    if [[ -n "${alias_to_title[$candidate_canon]}" ]]; then
+                        [[ "${alias_to_title[$candidate_canon]}" == "$canonical_target" ]] && is_match=true
+                        break
+                    fi
+
+                    [[ "$remaining" == *"#"* ]] || break
+                    remaining="${remaining%#*}"
+                done
+            fi
+
+            [[ "$is_match" == true ]] && printf '%s\n' "$src"
+
         done < <(scan_links) | awk '!seen[$0]++'
         ;;
 

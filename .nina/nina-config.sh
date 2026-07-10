@@ -39,11 +39,10 @@ ENABLE_CREATE_PROMPT=true
 # Rebuild index automatically after create/edit
 AUTO_REINDEX=true
 
-# Enable alias resolution (BETA). When on, the indexer builds
+# Enable alias resolution. When on, the indexer builds
 # a secondary alias->title index from any "- Alias:" header
 # lines, letting an article be opened by an alternate name.
-# Off by default while the feature is still being built out
-# across the other commands.
+# Off by default.
 ENABLE_ALIASES=false
 
 # Show linked article list after viewing
