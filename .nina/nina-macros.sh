@@ -252,10 +252,10 @@ TMP_DISPATCH=$(make_temp_file) || die "Failed to create temp file."
 
 mv "$TMP_DISPATCH" "$DISPATCH_FILE" || die "Failed to write macro dispatch file."
 
-echo "Macro manifest updated successfully."
+info "$MANIFEST_ROWS macro(s) installed."
 
 if (( SKIP_COUNT > 0 )); then
-    echo "$SKIP_COUNT macro(s) skipped due to errors."
+    info "$SKIP_COUNT macro(s) skipped due to errors."
 fi
 
 if (( ${#SKIPPED_FILES[@]} > 0 )); then
