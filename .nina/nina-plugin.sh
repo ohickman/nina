@@ -331,7 +331,7 @@ fi
 
 if (( ${#SKIPPED_FILES[@]} > 0 )); then
     echo
-    echo "Files skipped:"
+    info "Files skipped:"
     for i in "${!SKIPPED_FILES[@]}"; do
         echo "  ${SKIPPED_FILES[$i]} (${SKIPPED_REASONS[$i]})"
     done

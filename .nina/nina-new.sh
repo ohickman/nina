@@ -70,7 +70,7 @@ FILE="$NINA_DIR/${slug}.md"
 
 if [[ -f "$FILE" ]]; then
     echo
-    echo "[ERROR] Filename collision detected."
+    error "Filename collision detected."
     echo
     echo "The title \"$TITLE\" would create the file:"
     echo "  $FILE"

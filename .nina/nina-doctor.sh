@@ -19,23 +19,32 @@ print_section() {
     echo "== $1 =="
 }
 
+# These stay local rather than calling nina-lib.sh's own
+# ok/warn/error/info directly: this report tallies OK/WARN/
+# ERROR/INFO counts for the summary and exit code, and it
+# must always print - including when piped or run from cron -
+# whereas the library's info()/ok() are deliberately silent
+# off a TTY. Only the "[TAG]   message" formatting itself is
+# shared, via _nina_tagged_line, so it can't drift out of
+# alignment with the rest of nina again.
+
 ok() {
-    echo "[OK]   $1"
+    _nina_tagged_line "[OK]" "$1"
     ((OK_COUNT++))
 }
 
 warn() {
-    echo "[WARN] $1"
+    _nina_tagged_line "[WARN]" "$1"
     ((WARN_COUNT++))
 }
 
 error() {
-    echo "[ERROR] $1"
+    _nina_tagged_line "[ERROR]" "$1"
     ((ERROR_COUNT++))
 }
 
 info() {
-    echo "[INFO] $1"
+    _nina_tagged_line "[INFO]" "$1"
     ((INFO_COUNT++))
 }
 
@@ -133,8 +142,8 @@ if [[ -f "$INDEX_FILE" ]]; then
     if [[ -n "$bad_rows" ]]; then
         error "Malformed rows detected in index.tsv"
         printf "%s\n" "$bad_rows" | while read -r r; do
-            echo "       row $r has incorrect column count"
-            echo "       Run: nina --index"
+            detail "row $r has incorrect column count"
+            detail "Run: nina --index"
         done
     else
         ok "Index column structure valid"
@@ -246,7 +255,7 @@ if [[ -f "$INDEX_FILE" ]]; then
 
     if (( drift_count > 0 )); then
         warn "$drift_count article(s) modified or removed since last indexing"
-        echo "       Run: nina --index"
+        detail "Run: nina --index"
     else
         ok "Index appears up to date"
     fi
@@ -379,9 +388,9 @@ if [[ -d "$MACROS_DIR" ]]; then
     if (( ${#disk_dup_names[@]} > 0 )); then
         for dname in "${!disk_dup_names[@]}"; do
             error "Duplicate macro name on disk: $dname"
-            echo "       ${disk_first_file_for_name[$dname]}"
+            detail "${disk_first_file_for_name[$dname]}"
             IFS='|' read -ra dfiles <<< "${disk_dup_names[$dname]#|}"
-            for df in "${dfiles[@]}"; do echo "       $df"; done
+            for df in "${dfiles[@]}"; do detail "$df"; done
         done
     else
         ok "No duplicate macro names on disk"
@@ -390,9 +399,9 @@ if [[ -d "$MACROS_DIR" ]]; then
     if (( ${#disk_dup_functions[@]} > 0 )); then
         for dfunc in "${!disk_dup_functions[@]}"; do
             error "Two macro files derive the same function name: $dfunc"
-            echo "       ${disk_first_file_for_function[$dfunc]}"
+            detail "${disk_first_file_for_function[$dfunc]}"
             IFS='|' read -ra dffiles <<< "${disk_dup_functions[$dfunc]#|}"
-            for df in "${dffiles[@]}"; do echo "       $df"; done
+            for df in "${dffiles[@]}"; do detail "$df"; done
         done
     else
         ok "No function-name collisions on disk"
@@ -412,9 +421,9 @@ if [[ -d "$MACROS_DIR" ]]; then
     if (( ${#all_funcs_dup_files[@]} > 0 )); then
         for fname in "${!all_funcs_dup_files[@]}"; do
             error "Function '$fname' is defined in more than one macro file - this will break every macro, not just these:"
-            echo "       ${all_funcs_first_file[$fname]}"
+            detail "${all_funcs_first_file[$fname]}"
             IFS='|' read -ra ffiles <<< "${all_funcs_dup_files[$fname]#|}"
-            for ff in "${ffiles[@]}"; do echo "       $ff"; done
+            for ff in "${ffiles[@]}"; do detail "$ff"; done
         done
     else
         ok "No function name (including helpers) is defined in more than one macro file"
@@ -458,7 +467,7 @@ if [[ -d "$MACROS_DIR" ]]; then
 
         if (( macro_drift_count > 0 )); then
             warn "$macro_drift_count macro file(s) modified since last \`nina --macro\` run"
-            echo "       Run: nina --macro"
+            detail "Run: nina --macro"
         else
             ok "Macro manifest appears up to date"
         fi
@@ -651,22 +660,22 @@ if [[ -d "$PLUGINS_DIR" ]]; then
     fi
 
     echo
-    echo "       In folder:"
-    echo "         Valid and installed:     $valid_installed_count"
-    echo "         Invalid:                 $invalid_count"
-    echo "         Valid and not installed: $valid_not_installed_count"
+    detail "In folder:"
+    detail --level 2 "Valid and installed:     $valid_installed_count"
+    detail --level 2 "Invalid:                 $invalid_count"
+    detail --level 2 "Valid and not installed: $valid_not_installed_count"
     echo
-    echo "       Installed and contain:"
-    echo "         Web requests:  $web_count"
+    detail "Installed and contain:"
+    detail --level 2 "Web requests:  $web_count"
     if (( web_count > 0 )); then
         for f in "${web_files[@]}"; do
-            echo "           - $f"
+            detail --level 3 "- $f"
         done
     fi
-    echo "         File requests: $file_access_count"
+    detail --level 2 "File requests: $file_access_count"
     if (( file_access_count > 0 )); then
         for f in "${file_access_files[@]}"; do
-            echo "           - $f"
+            detail --level 3 "- $f"
         done
     fi
 
@@ -685,10 +694,10 @@ if [[ -d "$PLUGINS_DIR" ]]; then
             error "Duplicate plugin name on disk: $dname"
             files="${plugin_dup_files[$dname]}"
             files="${files#|}"
-            echo "         ${plugin_first_file[$dname]}"
+            detail "${plugin_first_file[$dname]}"
             IFS='|' read -ra dflist <<< "$files"
             for f in "${dflist[@]}"; do
-                echo "         $f"
+                detail "$f"
             done
         done
     else
@@ -715,7 +724,7 @@ if [[ -d "$PLUGINS_DIR" ]]; then
 
         if (( plugin_drift_count > 0 )); then
             warn "$plugin_drift_count plugin file(s) modified since last \`nina --plugin\` run"
-            echo "       Run: nina --plugin"
+            detail "Run: nina --plugin"
         else
             ok "Plugin manifest appears up to date"
         fi
@@ -733,9 +742,9 @@ if [[ -d "$PLUGINS_DIR" ]]; then
     # -------------------------------------
 
     echo
-    echo "       Config:"
-    echo "         ENABLE_PLUGINS:    ${ENABLE_PLUGINS:-false}"
-    echo "         PLUGIN_PERMIT_WEB: ${PLUGIN_PERMIT_WEB:-false}"
+    detail "Config:"
+    detail --level 2 "ENABLE_PLUGINS:    ${ENABLE_PLUGINS:-false}"
+    detail --level 2 "PLUGIN_PERMIT_WEB: ${PLUGIN_PERMIT_WEB:-false}"
 
     if [[ "${ENABLE_PLUGINS:-false}" != "true" ]]; then
         info "Plugin expansion is currently disabled (ENABLE_PLUGINS is not true) - <<...>> in your articles is left as literal text"

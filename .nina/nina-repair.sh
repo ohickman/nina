@@ -38,7 +38,7 @@ for file in "$NINA_DIR"/*.md; do
         issues_found=1
 
         echo
-        echo "Missing title in: $file"
+        warn "Missing title in: $file"
 
         read -r -p "Enter title (or press Enter to skip): " new_title
 
@@ -53,7 +53,7 @@ for file in "$NINA_DIR"/*.md; do
 
         mv "$tmp" "$file"
 
-        echo "Title added."
+        ok "Title added."
 
         continue
     fi
@@ -88,7 +88,7 @@ for file in "$NINA_DIR"/*.md; do
         issues_found=1
 
         echo
-        echo "Invalid date in: $file"
+        warn "Invalid date in: $file"
         echo "Current value: $date"
 
         read -r -p "Enter corrected date (YYYY-MM-DD) or Enter to remove: " new_date
@@ -98,7 +98,7 @@ for file in "$NINA_DIR"/*.md; do
         if [[ -z "$new_date" ]]; then
             if sed '/^- Date:/d' "$file" > "$tmp" && [[ -s "$tmp" || ! -s "$file" ]]; then
                 mv "$tmp" "$file"
-                echo "Date updated."
+                ok "Date updated."
             else
                 rm -f "$tmp"
                 error "Failed to update date — original file left unchanged."
@@ -107,7 +107,7 @@ for file in "$NINA_DIR"/*.md; do
             escaped_date=$(printf '%s' "$new_date" | sed 's/[&/\]/\\&/g')
             if sed "s/^- Date:.*/- Date: $escaped_date/" "$file" > "$tmp" && [[ -s "$tmp" || ! -s "$file" ]]; then
                 mv "$tmp" "$file"
-                echo "Date updated."
+                ok "Date updated."
             else
                 rm -f "$tmp"
                 error "Failed to update date — original file left unchanged."
@@ -127,7 +127,7 @@ for canon in "${!duplicates[@]}"; do
     issues_found=1
 
     echo
-    echo "Duplicate title detected: $canon"
+    warn "Duplicate title detected: $canon"
     echo
 
     files="${duplicates[$canon]}"
@@ -147,7 +147,7 @@ for canon in "${!duplicates[@]}"; do
 
     if ! [[ "$choice" =~ ^[0-9]+$ ]] ||
        (( choice < 1 || choice > ${#list[@]} )); then
-        echo "Invalid selection."
+        warn "Invalid selection."
         continue
     fi
 
@@ -159,7 +159,7 @@ for canon in "${!duplicates[@]}"; do
     echo
     echo "Current title: $old_title"
     echo
-    echo "Similar titles:"
+    info "Similar titles:"
     suggest_titles "$old_title" | sed 's/^/  /'
 
     while true; do
@@ -179,7 +179,7 @@ for canon in "${!duplicates[@]}"; do
             warn "Title already exists:"
             echo "  $existing"
             echo
-            echo "Similar titles:"
+            info "Similar titles:"
             suggest_titles "$new_title" | sed 's/^/  /'
             echo
             continue
@@ -192,7 +192,7 @@ for canon in "${!duplicates[@]}"; do
 
         if sed "1s/^# .*/# $escaped_title/" "$file" > "$tmp" && [[ -s "$tmp" ]]; then
             mv "$tmp" "$file"
-            echo "Title updated."
+            ok "Title updated."
         else
             rm -f "$tmp"
             error "Failed to update title — original file left unchanged."
@@ -223,4 +223,4 @@ if [[ "$ans" =~ ^[Yy]$ ]]; then
 fi
 
 echo
-echo "Repair complete."
+ok "Repair complete."

@@ -215,11 +215,11 @@ fi
 
 if [[ "$1" == "--reset" ]]; then
     echo
-    echo "This will overwrite your current config with defaults."
+    warn "This will overwrite your current config with defaults."
     read -r -p "Type 'reset' to confirm: " confirm
 
     if [[ "$confirm" != "reset" ]]; then
-        echo "Aborted."
+        info "Aborted."
         exit 0
     fi
 
@@ -248,7 +248,7 @@ source "$CONFIG_FILE"
 
 if [[ "$1" == "--validate" ]]; then
     echo
-    echo "Validating config..."
+    run "Validating config..."
 
     # Syntax check
     if ! bash -n "$CONFIG_FILE" 2>/dev/null; then

@@ -24,6 +24,8 @@ declare -A alias_src        # canonical title -> newline-separated raw aliases
 
 shopt -s nullglob
 
+run "Building index..."
+
 for file in "$NINA_DIR"/*.md; do
 
     # -----------------------------------------
@@ -170,7 +172,7 @@ fi
 # Commit index atomically
 # -----------------------------------------
 
-mv "$TMP_INDEX" "$INDEX_FILE" || die "[ERROR] Failed to write index."
+mv "$TMP_INDEX" "$INDEX_FILE" || die "Failed to write index."
     "$SCRIPT_DIR/nina-completion.sh"
 
 # -----------------------------------------
@@ -267,14 +269,14 @@ else
     rm -f "$ALIAS_INDEX_FILE"
 fi
 
-echo "Index updated successfully."
+ok "Index updated successfully."
 
 if (( WARN_COUNT > 0 )); then
-    echo "$WARN_COUNT warning(s) encountered during indexing."
+    warn "$WARN_COUNT warning(s) encountered during indexing."
 fi
 
 if (( SKIP_COUNT > 0 )); then
-    echo "$SKIP_COUNT article group(s) skipped due to errors."
+    info "$SKIP_COUNT article group(s) skipped due to errors."
 fi
 
 if (( ${#SKIPPED_FILES[@]} > 0 )); then

@@ -36,7 +36,7 @@ renamed_count=0
 
 mismatches=()   # "title|file|expected_slug" per row
 
-printf "Scanning %s now...\n" "$NINA_DIR"
+run "Scanning $NINA_DIR..."
 
 shopt -s nullglob
 
@@ -115,7 +115,7 @@ while (( ${#mismatches[@]} > 0 )); do
     read -r -p "Type 'rename' to accept (Enter to cancel): " confirm
 
     if [[ "$confirm" != "rename" ]]; then
-        echo "Skipped."
+        info "Skipped."
         continue
     fi
 
@@ -143,13 +143,13 @@ echo
 
 if (( renamed_count > 0 )); then
     if (( renamed_count == 1 )); then
-        echo "1 file renamed."
+        ok "1 file renamed."
     else
-        echo "$renamed_count files renamed."
+        ok "$renamed_count files renamed."
     fi
-    echo "Run 'nina --index' to update the index."
+    info "Run 'nina --index' to update the index."
 else
-    echo "No files renamed."
+    info "No files renamed."
 fi
 
 exit 0

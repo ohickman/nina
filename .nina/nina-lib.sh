@@ -39,11 +39,45 @@ make_temp_file() {
 SCRIPT_NAME="${SCRIPT_NAME:-$(basename "$0" .sh)}"
 IS_TTY=false
 [[ -t 1 ]] && IS_TTY=true
-die()   {            printf "[ERROR] %s: %s\n" "$SCRIPT_NAME" "$*" >&2; exit 1; }
-error() {            printf "[ERROR] %s: %s\n" "$SCRIPT_NAME" "$*" >&2; }
-warn()  {            printf "[WARN]  %s: %s\n" "$SCRIPT_NAME" "$*" >&2; }
-info()  { $IS_TTY && printf "[INFO]  %s\n" "$*"; }
-ok()    { $IS_TTY && printf "[OK]    %s\n" "$*"; }
+# _nina_tagged_line TAG MESSAGE
+# Single source of truth for the "[TAG]   message" column
+# alignment used across every status helper below. Tag is
+# left-padded to 7 columns plus one separating space, so
+# "[ERROR]" (7 chars) and "[OK]" (4 chars) both land their
+# message text in the same column. Exposed (not "_"-private
+# in practice) so callers with their own display/counting
+# needs - e.g. nina-doctor, which tallies OK/WARN/ERROR/INFO
+# counts and must always print regardless of $IS_TTY - can
+# reuse the exact same formatting instead of re-deriving it.
+_nina_tagged_line() { printf "%-7s %s\n" "$1" "$2"; }
+
+die()   {            _nina_tagged_line "[ERROR]" "$SCRIPT_NAME: $*" >&2; exit 1; }
+error() {            _nina_tagged_line "[ERROR]" "$SCRIPT_NAME: $*" >&2; }
+warn()  {            _nina_tagged_line "[WARN]"  "$SCRIPT_NAME: $*" >&2; }
+info()  { $IS_TTY && _nina_tagged_line "[INFO]"  "$*"; }
+ok()    { $IS_TTY && _nina_tagged_line "[OK]"    "$*"; }
+run()   { $IS_TTY && _nina_tagged_line "[RUN]"   "$*"; }
+
+# detail [--level N] MESSAGE
+# Indented continuation/detail line meant to sit under a
+# preceding tagged message (ok/warn/error/info/run) - e.g. a
+# file path, a suggested follow-up command, or a sub-item in
+# a summary list. Indentation is derived from the same 8-column
+# width _nina_tagged_line uses for the "[TAG]   " prefix, so a
+# detail line always lines up under the tag's message text
+# without any caller having to hand-count spaces (and without
+# drifting if that width ever changes). Level 1 (default) is
+# that base alignment; each additional level nests 2 spaces
+# further, for a sub-item under a sub-item.
+detail() {
+    local level=1
+    if [[ "$1" == "--level" ]]; then
+        level="$2"
+        shift 2
+    fi
+    local indent=$(( 8 + (level - 1) * 2 ))
+    printf "%*s%s\n" "$indent" "" "$*"
+}
 
 ###########################################
 #              CONFIGURATION              #
