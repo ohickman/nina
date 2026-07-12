@@ -469,31 +469,21 @@ scan_links() {
     # per call; anything that calls scan_links twice (e.g. nina --stats)
     # paid that cost twice.
     #
-    # This rewrite does the same work inside a single awk process:
-    # - reads index.tsv via getline in BEGIN
-    # - reads each article file via getline (no tr/grep/sed subprocesses)
-    # - performs all title normalization as pure awk string operations
-    # - deduplicates output rows in-process (replacing the trailing
-    #   awk '!seen[$0]++' pipeline stage)
-    #
-    # /dev/null is passed as awk's input file because all the real work
-    # happens in BEGIN; awk needs at least one named input to start but
-    # immediately gets EOF from /dev/null and exits cleanly.
-    #
-    # The variable `apos` (passed via -v) holds a plain ASCII apostrophe.
-    # It is used as a gsub replacement for curly single quotes, because
-    # a literal ' inside the awk '...' string would end the bash
-    # single-quoted block prematurely.
+    # The actual link-scanning logic lives in nina-scan-links.awk (a single
+    # awk process: reads index.tsv and every article file via getline, does
+    # all title normalization as pure awk string operations, and deduplicates
+    # output rows in-process). This function's job is just to compute the
+    # inputs that logic needs and hand them off via -v.
 
     # The seven special-character variables below are the UTF-8 byte sequences
     # for the dash variants and curly quotes that canonical_title() normalizes.
-    # They are passed via -v rather than embedded in the awk program string
-    # because embedding multi-byte UTF-8 inside awk '...' causes them to be
-    # silently corrupted by the editing pipeline. Using printf + octal escapes
+    # They are passed via -v rather than embedded as literals in the awk file
+    # because embedding multi-byte UTF-8 directly in an awk program can be
+    # silently corrupted by editing pipelines. Using printf + octal escapes
     # in the shell generates the actual bytes, -v passes them to awk unchanged
-    # (no awk escape processing applies to raw non-ASCII bytes), and the awk
-    # program itself stays pure ASCII. `apos` (plain apostrophe) is handled the
-    # same way to avoid ending the bash single-quoted awk program string.
+    # (no awk escape processing applies to raw non-ASCII bytes). `apos` (plain
+    # apostrophe) is passed the same way for consistency, and is used as a
+    # gsub replacement for curly single quotes.
 
     local en_dash em_dash minus_s ldq rdq lsq rsq
     en_dash=$(printf '\342\200\223')   # U+2013 –
@@ -512,7 +502,8 @@ scan_links() {
     local alias_file=""
     [[ "$ENABLE_ALIASES" == true && -f "$ALIAS_INDEX_FILE" ]] && alias_file="$ALIAS_INDEX_FILE"
 
-    awk -v index_file="$INDEX_FILE" \
+    awk -f "$NINA_LIB_DIR/nina-scan-links.awk" \
+        -v index_file="$INDEX_FILE" \
         -v alias_file="$alias_file" \
         -v apos="'"     \
         -v en_dash="$en_dash" \
@@ -522,179 +513,7 @@ scan_links() {
         -v rdq="$rdq"   \
         -v lsq="$lsq"   \
         -v rsq="$rsq"   \
-        '
-
-    # -----------------------------------------------
-    # normalize_display(s)
-    # Collapses runs of whitespace to a single space
-    # and strips leading/trailing whitespace.
-    # Equivalent to normalize_display_title() in nina-lib.sh.
-    # -----------------------------------------------
-    function normalize_display(s) {
-        gsub(/[[:space:]]+/, " ", s)
-        sub(/^ /,            "",  s)
-        sub(/ $/,            "",  s)
-        return s
-    }
-
-    # -----------------------------------------------
-    # canonicalize(s)
-    # Produces the canonical comparison form of a title:
-    # normalized whitespace, dash variants collapsed to
-    # ASCII hyphen, curly quotes straightened, lowercased.
-    # Equivalent to canonical_title() in nina-lib.sh.
-    #
-    # Special characters are used as dynamic gsub patterns
-    # (string variables, not regex literals) - since none
-    # of their bytes are ASCII regex metacharacters they
-    # match literally, same as if they were regex literals.
-    # -----------------------------------------------
-    function canonicalize(s) {
-        s = normalize_display(s)
-        gsub(en_dash, "-", s)    # en-dash    U+2013
-        gsub(em_dash, "-", s)    # em-dash    U+2014
-        gsub(minus_s, "-", s)    # minus sign U+2212
-        gsub(ldq,  "\"", s)      # left double quote  U+201C
-        gsub(rdq,  "\"", s)      # right double quote U+201D
-        gsub(lsq,  apos, s)      # left single quote  U+2018
-        gsub(rsq,  apos, s)      # right single quote U+2019
-        return tolower(s)
-    }
-
-    # -----------------------------------------------
-    # strip_delim(line, delim)
-    # Removes paired inline code spans (`` or `) from
-    # a line so that [[links]] written inside code spans
-    # are not extracted as real links.
-    # Identical logic to strip_delim() inside
-    # strip_code_for_link_scan() in nina-lib.sh.
-    # -----------------------------------------------
-    function strip_delim(line, delim,
-                         dlen, start, search_from, close_pos, result, p) {
-        dlen   = length(delim)
-        result = ""
-        while (1) {
-            start = index(line, delim)
-            if (start == 0) break
-            search_from = start + dlen
-            close_pos   = 0
-            while (1) {
-                p = index(substr(line, search_from), delim)
-                if (p == 0) break
-                p = search_from + p - 1
-                if (p == start + dlen) {
-                    # Adjacent delimiter pair - empty span, skip past it
-                    search_from = p + dlen
-                    continue
-                }
-                close_pos = p
-                break
-            }
-            if (close_pos == 0) break
-            result = result substr(line, 1, start - 1)
-            line   = substr(line, close_pos + dlen)
-        }
-        return result line
-    }
-
-    # -----------------------------------------------
-    # process_line(line, src_display, src_canon)
-    # Scans one article line for [[...]] links after
-    # code spans have already been stripped, and prints
-    # one tab-separated output row per unique link:
-    #   source_display TAB source_canon TAB target_display TAB target_canon
-    # Deduplication is done here rather than in a
-    # separate downstream awk pass.
-    # -----------------------------------------------
-    function process_line(line, src_display, src_canon,
-                          pos, open_idx, close_idx, content,
-                          pipe_pos, tgt_raw, tgt_display, tgt_canon, key) {
-        pos = 1
-        while (1) {
-            # Locate the next [[ on the line
-            open_idx = index(substr(line, pos), "[[")
-            if (open_idx == 0) break
-            open_idx = pos + open_idx - 1
-
-            # Locate the matching ]]
-            close_idx = index(substr(line, open_idx + 2), "]]")
-            if (close_idx == 0) break
-            close_idx = open_idx + 2 + close_idx - 1
-
-            # Everything between [[ and ]]
-            content = substr(line, open_idx + 2, close_idx - (open_idx + 2))
-
-            # [[Display Text|Target Title]] - target is after the pipe
-            # [[Target Title]]              - target is the whole content
-            pipe_pos = index(content, "|")
-            if (pipe_pos > 0)
-                tgt_raw = substr(content, pipe_pos + 1)
-            else
-                tgt_raw = content
-
-            tgt_display = normalize_display(tgt_raw)
-            tgt_canon   = canonicalize(tgt_display)
-
-            # De-alias: a link whose target is an alias resolves
-            # to the real article it names, so backlinks, dangling,
-            # orphan and graph all see the true target rather than
-            # the alias. A real title is never a key in this map,
-            # so ordinary titles pass through untouched. The map is
-            # empty when aliases are off, making this a no-op.
-            if (tgt_canon in alias2title) {
-                tgt_display = alias2title[tgt_canon]
-                tgt_canon   = canonicalize(tgt_display)
-            }
-
-            if (tgt_display != "") {
-                key = src_display "\t" src_canon "\t" tgt_display "\t" tgt_canon
-                if (!seen[key]++)
-                    print key
-            }
-
-            # Advance the cursor past this link before searching for the next
-            pos = close_idx + 2
-        }
-    }
-
-    BEGIN {
-
-        # Load the alias -> real-title map, keyed by the alias
-        # canonical form. Empty alias_file (aliases off or index
-        # absent) skips this, leaving alias2title empty so the
-        # de-alias step in process_line never fires.
-        if (alias_file != "") {
-            while ((getline a_line < alias_file) > 0) {
-                split(a_line, acol, "\t")
-                a_canon = canonicalize(acol[1])
-                if (a_canon != "")
-                    alias2title[a_canon] = normalize_display(acol[2])
-            }
-            close(alias_file)
-        }
-
-        while ((getline idx_line < index_file) > 0) {
-
-            # Index columns: file TAB title TAB author TAB date TAB tags
-            split(idx_line, cols, "\t")
-            file        = cols[1]
-            src_display = normalize_display(cols[2])
-            src_canon   = canonicalize(src_display)
-
-            # Read and process each line of this article file
-            while ((getline art_line < file) > 0) {
-                gsub(/\r/, "", art_line)          # strip Windows CR
-                if (art_line ~ /^```/) continue   # skip full code-block lines
-                art_line = strip_delim(art_line, "``")  # strip ``double`` spans
-                art_line = strip_delim(art_line, "`")   # strip `single` spans
-                process_line(art_line, src_display, src_canon)
-            }
-            close(file)
-        }
-        close(index_file)
-    }
-
-    ' /dev/null
+        /dev/null
 }
 
 # -----------------------------------------
