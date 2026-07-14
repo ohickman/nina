@@ -25,14 +25,25 @@ Prints a Graphviz `digraph` of every `[[link]]` in your knowledge base to standa
 ```dot -Tpng links.dot -o links.png
 An article with no links in either direction won't appear in the graph at all - see `--orphan` below for the list of those.
 
+`--dot` is the default and needs no flag; `--tsv` gets you the same edges as plain tab-separated rows (`src_canon`, `src`, `target_canon`, `target`) instead, for piping into other tools:
+```nina --graph --tsv
+
 ---
 
 # --tree
 
-```nina --tree "Article Title" [--depth N | -d N]
+```nina --tree "Article Title" [--depth N | -d N] [--tsv|--dot]
 Required: the article's title. Optional: `--depth`/`-d`, how many hops out to draw (default 2, max 10).
 
 Draws that article's links radiating outward in both directions - backlinks above, forward links below. A `▲`/`▼` marks a node that also links directly back to its immediate parent in the tree, flagging a two-way connection rather than just the one-way path drawn to reach it. Interactive: enter a row's number to open that article, `0` for the center article, or Enter to exit.
+
+```OPTION    MEANING
+```------    -------
+```--tsv    one row per node, including the center - columns: row, direction, depth, canon, display, mutual
+```--dot    Graphviz source - one edge per row, in that row's own real link direction (see below)
+
+`--dot` draws a directed graph: an ancestor row's edge points *toward* the center (that's what makes it an ancestor - it links to whatever's one step closer in), and a descendant row's edge points *away* from it. It uses `rankdir=TB` rather than the usual left-to-right default, since this view is naturally vertical - ancestors above, descendants below - same as the text-mode layout above.
+```nina --tree "Article Title" --dot | dot -Tpng -o tree.png
 
 ---
 
@@ -73,13 +84,28 @@ With `--tag`, the whole search is restricted to the subgraph of articles carryin
 
 ---
 
+# Rendering `--dot` Output
+
+Every `--dot` mode across nina - `--graph`, `--tree`, `--tag-graph`, and several of the commands below - produces the same kind of thing: plain Graphviz source, starting with a `//`-comment line naming the command that produced it, so a saved `.dot` file is still identifiable later even out of context. Pipe it into Graphviz's own tools to get an actual picture:
+
+```nina --tree "Article Title" --dot | dot -Tpng -o tree.png
+```nina --graph --dot | sfdp -Tpng -o corpus.png
+
+`dot` lays out hierarchical/directed structure predictably; `sfdp` is more forgiving on a large or densely-connected graph and often a better first try for a whole-corpus `--graph`/`--tag-graph` export. Both read the same input - try whichever gives a more readable layout for what you're looking at.
+
+Edge thickness (`penwidth`) always means the same thing regardless of which command produced it: a stronger relationship - a link count, a co-occurrence count, a `--similar` score - draws a heavier line, scaled by `DOT_PENWIDTH_MIN`/`MAX`/`SCALE` in the config file. Node shape, color, and font are also config-driven (`DOT_NODE_SHAPE`, `DOT_FONTNAME`, and so on). See `nina_conf(5)`, GRAPH OUTPUT (--dot), for the full list of knobs.
+
+---
+
 # Other Ways to Discover Structure
 
-`--graph`, `--tree`, and `--tag-graph` are one family for seeing the corpus as a whole rather than one article at a time. A few more commands, covered in [[Nina - User: Help]], already answer related questions:
+`--graph`, `--tree`, and `--tag-graph` are one family for seeing the corpus as a whole rather than one article at a time. A few more commands, covered in [[Nina - User: Help]], already answer related questions - and, like the three above, most of them also support `--tsv` (plain rows, for piping) and `--dot` (a Graphviz picture) alongside their normal terminal output:
 
-* `--orphan` - articles nothing links to
-* `--dangling` - links pointing at articles that don't exist
-* `--backlinks "Title"` - what links to one article
-* `--stats` - corpus-wide counts
+* `--orphan` - articles nothing links to. `--dot` draws each as a standalone, color-flagged node.
+* `--dangling` - links pointing at articles that don't exist. `--dot` draws each as a standalone node labeled " (missing)".
+* `--backlinks "Title"` - what links to one article. `--dot` draws a small directed graph, everything pointing at that one title.
+* `--links "Title"` - what one article links to, unresolved (exactly as written, anchors and all). `--dot` draws a small directed graph, one source fanning out.
+* `--similar "Title"` - articles with a lot of shared distinctive vocabulary, whether or not they're linked or tagged alike at all - a relationship the other commands here can't see, since none of them read article *content*. `--dot` draws it as an undirected graph, edge thickness reflecting how similar each match actually is.
+* `--stats` - corpus-wide counts.
 
 This is the natural home for any further structure-discovery tools too, as they get built.

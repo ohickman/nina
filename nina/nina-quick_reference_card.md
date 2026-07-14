@@ -1,7 +1,7 @@
 # Nina - Quick Reference Card
 - Tags: nina reference help
 
-This card is deliberately bare. For what any of these actually do, see [[Nina - User: Help]] or [[Nina - User: Getting Started]].
+This card is deliberately bare. For what any of these actually do, see [[Nina - User: Help]] or [[Nina - User: Getting Started]]. For the structure-discovery commands and their `--tsv`/`--dot` output formats specifically, see [[Nina - User: Knowledge Insights]].
 
 # Basics
 
@@ -37,6 +37,8 @@ This card is deliberately bare. For what any of these actually do, see [[Nina - 
 ```--stats               --       knowledge base statistics
 ```--tag [title]         -t       list all tags, or tags of one article
 ```--tag <tag> --count   --       count articles with a tag
+```--tag-graph <mode>    --       tag relationships: cooccur, links, islands
+```--tree <title>        --       links radiating out from one article
 
 # By Category
 
@@ -61,6 +63,8 @@ This card is deliberately bare. For what any of these actually do, see [[Nina - 
 ```  --orphan                   nothing links to these
 ```  --dangling                 links to nothing
 ```  --graph, -g                export a link graph
+```  --tree <title>             links radiating out from one article
+```  --tag-graph <mode>         tag relationships: cooccur, links, islands
 ```  --stats                    overall statistics
 
 ```Maintenance
