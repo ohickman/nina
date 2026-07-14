@@ -113,14 +113,12 @@ limit_rows() {
     fi
 }
 
-# scaled_weight COUNT
-# Maps a raw count onto a modest Graphviz penwidth range
-# so heavily-weighted edges are visually heavier without
-# a handful of outlier counts making everything else look
-# like a hairline by comparison.
-scaled_weight() {
-    awk -v c="$1" 'BEGIN { w = 1 + c/5; if (w > 6) w = 6; printf "%.1f", w }'
-}
+# Edge penwidth scaling now lives in nina-lib.sh as dot_weight()
+# (config-driven via DOT_PENWIDTH_MIN/MAX/SCALE) - see [[Nina -
+# Devs: Graph Output Standard]]. The old local scaled_weight()
+# hardcoded 1/6/5; removed in favor of the shared helper so this
+# command's --dot output scales edges identically to every other
+# command's.
 
 # Heading style for --tree output, same override pattern
 # nina-tree.sh uses for TREE_CENTER_STYLE: read from config
@@ -244,7 +242,14 @@ if [[ "$MODE" == "cooccur" ]]; then
             (( i == 0 )) && info "No co-occurring tag pairs found."
             ;;
         tsv)
-            printf '%s\n' "$pairs" | limit_rows
+            # Header is load-bearing per the --tsv contract - emitted
+            # even when $pairs is empty, so a consumer always gets a
+            # parseable (if zero-row) answer rather than a bare blank
+            # line.
+            printf '#tag_a\ttag_b\ttogether_on\n'
+            if [[ -n "$pairs" ]]; then
+                printf '%s\n' "$pairs" | limit_rows
+            fi
             ;;
         tree)
             # Mirror every pair into both directions so grouping by
@@ -260,14 +265,17 @@ if [[ "$MODE" == "cooccur" ]]; then
             } | awk -F'\t' -v f="$TAG_FILTER" 'f == "" || $1 == f' | render_tree_grouped
             ;;
         dot)
-            echo "graph nina_cooccur {"
-            echo "    rankdir=LR;"
-            echo "    node [shape=box, style=rounded];"
-            while IFS=$'\t' read -r a b c; do
-                [[ -z "$a" ]] && continue
-                printf '    "%s" -- "%s" [label="%s", penwidth=%s];\n' "$a" "$b" "$c" "$(scaled_weight "$c")"
-            done < <(printf '%s\n' "$pairs" | limit_rows)
-            echo "}"
+            # Undirected - tag co-occurrence is inherently symmetric
+            # (see Graph Direction and Rankdir in the standard doc).
+            dot_comment "nina --tag-graph cooccur --top $TOP --min $MIN${TAG_FILTER:+ --tag \"$TAG_FILTER\"} --dot"
+            dot_graph_open "nina_cooccur" false
+            if [[ -n "$pairs" ]]; then
+                while IFS=$'\t' read -r a b c; do
+                    [[ -z "$a" ]] && continue
+                    dot_edge "$a" "$b" "$c" false
+                done < <(printf '%s\n' "$pairs" | limit_rows)
+            fi
+            dot_graph_close
             ;;
     esac
 
@@ -343,7 +351,12 @@ if [[ "$MODE" == "links" ]]; then
             (( i == 0 )) && info "No tag-to-tag links found."
             ;;
         tsv)
-            printf '%s\n' "$edges" | limit_rows
+            # Header is load-bearing per the --tsv contract - emitted
+            # even when $edges is empty.
+            printf '#from_tag\tto_tag\tlinks\n'
+            if [[ -n "$edges" ]]; then
+                printf '%s\n' "$edges" | limit_rows
+            fi
             ;;
         tree)
             # Same reasoning as the cooccur tree branch: with a
@@ -353,14 +366,19 @@ if [[ "$MODE" == "links" ]]; then
             printf '%s\n' "$edges" | awk -F'\t' -v f="$TAG_FILTER" 'f == "" || $1 == f' | render_tree_grouped
             ;;
         dot)
-            echo "digraph nina_tag_links {"
-            echo "    rankdir=LR;"
-            echo "    node [shape=box, style=rounded];"
-            while IFS=$'\t' read -r a b c; do
-                [[ -z "$a" ]] && continue
-                printf '    "%s" -> "%s" [label="%s", penwidth=%s];\n' "$a" "$b" "$c" "$(scaled_weight "$c")"
-            done < <(printf '%s\n' "$edges" | limit_rows)
-            echo "}"
+            # Directed - a link between two articles has a real
+            # direction, and this mode just rolls that up to the tag
+            # level (see Graph Direction and Rankdir in the standard
+            # doc).
+            dot_comment "nina --tag-graph links --top $TOP --min $MIN${TAG_FILTER:+ --tag \"$TAG_FILTER\"} --dot"
+            dot_graph_open "nina_tag_links" true
+            if [[ -n "$edges" ]]; then
+                while IFS=$'\t' read -r a b c; do
+                    [[ -z "$a" ]] && continue
+                    dot_edge "$a" "$b" "$c" true
+                done < <(printf '%s\n' "$edges" | limit_rows)
+            fi
+            dot_graph_close
             ;;
     esac
 
@@ -387,14 +405,24 @@ fi
 
 if [[ "$MODE" == "islands" ]]; then
 
-    declare -A DISP_OF TAGS_OF PARENT
+    declare -A DISP_OF ALIAS_OF TAGS_OF PARENT
 
-    while IFS=$'\t' read -r canon disp tags; do
+    # DISP_OF/ALIAS_OF are built via the shared library
+    # (nina-lib.sh: build_title_maps) rather than a bespoke paste,
+    # so an anchored link target ([[Title#Heading]]) can be
+    # resolved the same way nina-graph.sh, nina-backlinks.sh,
+    # nina-orphan.sh, and nina-dangling.sh already do - see
+    # resolve_split_target below. Previously this mode compared a
+    # scanned link's raw, still-anchored target_canon directly
+    # against PARENT, which never matches a real title's own
+    # canonical form - silently dropping every anchored link from
+    # both the union-find step and the edge list --dot draws.
+    build_title_maps DISP_OF ALIAS_OF
+
+    while IFS=$'\t' read -r canon tags; do
         [[ -z "$canon" ]] && continue
-        DISP_OF["$canon"]="$disp"
         TAGS_OF["$canon"]="$tags"
     done < <(paste <(cut -d $'\t' -f2 "$INDEX_FILE" | canonical_title) \
-                    <(cut -d $'\t' -f2 "$INDEX_FILE") \
                     <(cut -d $'\t' -f5 "$INDEX_FILE"))
 
     tag_has() {
@@ -409,13 +437,36 @@ if [[ "$MODE" == "islands" ]]; then
         PARENT["$canon"]="$canon"
     done
 
+    # emit_empty_islands [INFO_MESSAGE]
+    # Both early-exit points below (no in-scope articles at all;
+    # no component meets --min) need the same fork: table/tree get
+    # a human info message, but tsv/dot still owe a consumer a
+    # valid, parseable zero-row/zero-edge answer - the header and
+    # the comment+open+close skeleton are load-bearing even here,
+    # same as everywhere else in the --tsv/--dot contracts.
+    emit_empty_islands() {
+        case "$FORMAT" in
+            tsv)
+                printf '#island\tsize\ttitle\n'
+                ;;
+            dot)
+                dot_comment "nina --tag-graph islands --top $TOP --min $MIN${TAG_FILTER:+ --tag \"$TAG_FILTER\"} --dot"
+                dot_graph_open "nina_islands" false
+                dot_graph_close
+                ;;
+            *)
+                info "$1"
+                ;;
+        esac
+        exit 0
+    }
+
     if (( ${#PARENT[@]} == 0 )); then
         if [[ -n "$TAG_FILTER" ]]; then
-            info "No articles tagged '$TAG_FILTER'."
+            emit_empty_islands "No articles tagged '$TAG_FILTER'."
         else
-            info "No articles in the index."
+            emit_empty_islands "No articles in the index."
         fi
-        exit 0
     fi
 
     find_root() {
@@ -441,11 +492,23 @@ if [[ "$MODE" == "islands" ]]; then
     kept_src=()
     kept_tgt=()
 
-    while IFS=$'\t' read -r _s_disp s_canon _t_disp t_canon; do
-        [[ -n "${PARENT[$s_canon]:-}" && -n "${PARENT[$t_canon]:-}" ]] || continue
-        union_nodes "$s_canon" "$t_canon"
+    while IFS=$'\t' read -r _s_disp s_canon target t_canon; do
+        [[ -n "${PARENT[$s_canon]:-}" ]] || continue
+
+        resolved_t_canon="$t_canon"
+
+        # Only resolve through the split when the raw target
+        # doesn't already match an in-scope title directly -
+        # identical cost to before for the common, unanchored
+        # case. See nina-graph.sh for the same pattern.
+        if [[ -z "${PARENT[$t_canon]:-}" ]] && resolve_split_target "$target" "$t_canon" DISP_OF ALIAS_OF; then
+            resolved_t_canon="$NINA_SPLIT_CANON"
+        fi
+
+        [[ -n "${PARENT[$resolved_t_canon]:-}" ]] || continue
+        union_nodes "$s_canon" "$resolved_t_canon"
         kept_src+=("$s_canon")
-        kept_tgt+=("$t_canon")
+        kept_tgt+=("$resolved_t_canon")
     done < <(scan_links)
 
     # Group every in-scope node under its component root.
@@ -466,8 +529,7 @@ if [[ "$MODE" == "islands" ]]; then
     done | awk -v min="$MIN" '$1 >= min' | sort -t $'\t' -k1,1nr | limit_rows)"
 
     if [[ -z "$roots_ranked" ]]; then
-        info "No islands of $MIN or more connected articles found. Try --min 1 to include single-article islands."
-        exit 0
+        emit_empty_islands "No islands of $MIN or more connected articles found. Try --min 1 to include single-article islands."
     fi
 
     case "$FORMAT" in
@@ -496,6 +558,12 @@ if [[ "$MODE" == "islands" ]]; then
             done <<< "$roots_ranked"
             ;;
         tsv)
+            # Header is load-bearing per the --tsv contract. The
+            # zero-row case is already handled above by
+            # emit_empty_islands before roots_ranked can be empty
+            # here, but the header still belongs on every row set,
+            # not just the non-empty one.
+            printf '#island\tsize\ttitle\n'
             comp_i=0
             while IFS=$'\t' read -r size root; do
                 [[ -z "$root" ]] && continue
@@ -507,27 +575,43 @@ if [[ "$MODE" == "islands" ]]; then
             done <<< "$roots_ranked"
             ;;
         dot)
-            echo "digraph nina_islands {"
-            echo "    rankdir=LR;"
-            echo "    node [shape=box, style=rounded];"
+            # Undirected - per the standard doc, --tag-graph islands
+            # draws the same link data --graph draws, but grouped by
+            # island membership; the real direction of each link is
+            # what --graph itself is for. Union-find already treats
+            # links as undirected for reachability, so the drawn
+            # graph matches the relationship it's actually showing.
+            #
+            # Cluster membership lines are escaped directly with
+            # dot_escape rather than through dot_node, since dot_node
+            # always writes a single top-level, 4-space-indented
+            # declaration - it doesn't know about the extra nesting
+            # a subgraph cluster block needs here.
+            dot_comment "nina --tag-graph islands --top $TOP --min $MIN${TAG_FILTER:+ --tag \"$TAG_FILTER\"} --dot"
+            dot_graph_open "nina_islands" false
             comp_i=0
             while IFS=$'\t' read -r size root; do
                 [[ -z "$root" ]] && continue
                 ((comp_i++))
                 printf '    subgraph cluster_%d {\n' "$comp_i"
-                printf '        label="Island %d (%d article%s)";\n' "$comp_i" "$size" "$([[ $size == 1 ]] || printf 's')"
+                printf '        label="%s";\n' "$(dot_escape "Island $comp_i ($size article$([[ $size == 1 ]] || printf 's'))")"
                 mapfile -t members < <(printf '%s' "${GROUP_MEMBERS[$root]}" | sort -f)
                 for m in "${members[@]}"; do
                     [[ -z "$m" ]] && continue
-                    printf '        "%s";\n' "$m"
+                    printf '        "%s";\n' "$(dot_escape "$m")"
                 done
                 printf '    }\n'
             done <<< "$roots_ranked"
 
+            # Same rationale as nina-graph.sh: this graph shows
+            # connectivity only, not link count, so there is no
+            # natural per-edge strength - a constant strength of 1
+            # is passed so these edges still render through the same
+            # dot_edge() every relationship graph uses.
             for (( e = 0; e < ${#kept_src[@]}; e++ )); do
-                printf '    "%s" -> "%s";\n' "${DISP_OF[${kept_src[$e]}]}" "${DISP_OF[${kept_tgt[$e]}]}"
+                dot_edge "${DISP_OF[${kept_src[$e]}]}" "${DISP_OF[${kept_tgt[$e]}]}" 1 false
             done
-            echo "}"
+            dot_graph_close
             ;;
     esac
 

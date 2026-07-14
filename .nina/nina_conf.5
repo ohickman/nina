@@ -231,6 +231,100 @@ output (see
 Same rules as
 .BR TREE_CENTER_STYLE .
 
+.SH GRAPH OUTPUT (--dot)
+These variables control every command's
+.B --dot
+output - see
+.BR nina (1)
+for which commands support it. They live in the same file, loaded
+the same way, as every other configuration value. See the
+.I Nina - Devs: Graph Output Standard
+developer document shipped with nina for the full contract these
+implement; this section covers the user-facing knobs only.
+
+.TP
+.B DOT_PENWIDTH_MIN
+Minimum edge penwidth, so even a single-count edge is visibly a
+line rather than a hairline. Numeric value, not a boolean.
+Default: 1.0.
+
+.TP
+.B DOT_PENWIDTH_MAX
+Maximum edge penwidth, so one outlier-strength edge doesn't make
+every other edge in the same graph look like a hairline by
+comparison. Numeric value, not a boolean. Default: 6.0.
+
+.TP
+.B DOT_PENWIDTH_SCALE
+Controls how quickly a rising edge strength approaches
+.BR DOT_PENWIDTH_MAX :
+penwidth is
+.BR DOT_PENWIDTH_MIN " + strength / " DOT_PENWIDTH_SCALE ,
+capped at
+.BR DOT_PENWIDTH_MAX .
+A smaller value saturates sooner. Numeric value, not a boolean.
+Default: 5.
+
+.TP
+.B DOT_NODE_SHAPE
+Graphviz shape attribute applied to every node. String value.
+Default:
+.BR box .
+
+.TP
+.B DOT_NODE_STYLE
+Graphviz style attribute applied to every node. String value.
+Default:
+.BR rounded .
+
+.TP
+.B DOT_FONTNAME
+Font used for node and edge labels. String value. Default:
+.BR Helvetica .
+
+.TP
+.B DOT_FONTSIZE
+Font size used for node and edge labels. Numeric value, not a
+boolean. Default: 10.
+
+.TP
+.B DOT_RANKDIR
+Default Graphviz layout direction. String value, one of Graphviz's
+own
+.B rankdir
+values (e.g.
+.BR LR ", " TB ).
+Default:
+.BR LR .
+A command may override this for its own
+.B --dot
+output when a different layout fits what it draws better (for
+example,
+.B "nina --tree --dot"
+uses
+.B TB
+regardless of this setting, since ancestors and descendants are
+drawn above and below the center respectively) - see
+.BR nina (1)
+for which commands do this.
+
+.TP
+.B DOT_SHOW_EDGE_LABELS
+Whether edges are labeled with their raw strength value. When
+false, edges are still weighted (penwidth still varies) but drawn
+without a label, which some people prefer once a graph gets large.
+Boolean value.
+
+.TP
+.B DOT_PROBLEM_NODE_COLOR
+Fill color used for a node
+.BR "nina --orphan --dot" " or " "nina --dangling --dot"
+draws to call out a problem article or link. Not used by any of
+the graphs showing an ordinary relationship. String value, any
+color Graphviz accepts (e.g. a hex code or a named color).
+Default:
+.BR "#f8d7da" .
+
 .SH TERMINAL BEHAVIOR
 .B nina
 detects terminal characteristics at runtime:

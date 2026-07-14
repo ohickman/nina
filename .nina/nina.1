@@ -129,12 +129,40 @@ nina --date 2026-03-10+7
 .fi
 
 .TP
-.BR -b ", " --backlinks " TITLE"
+.BR -b ", " --backlinks " TITLE " [ --tsv | --dot ]
 Display articles that link to the specified article.
+.RS
+.TP
+.BR --tsv
+Plain tab-separated rows (columns:
+.BR canon ", " display ),
+for piping into other tools.
+.TP
+.BR --dot
+Graphviz source: a directed graph, one edge per linking article
+pointing at
+.IR TITLE .
+.RE
 
 .TP
-.BR -l ", " --links " TITLE"
+.BR -l ", " --links " TITLE " [ --tsv | --dot ]
 Display articles linked from the specified article.
+.RS
+.TP
+.BR --tsv
+Plain tab-separated rows (columns:
+.BR canon ", " display ),
+one row per linked target, exactly as it appears in the article's
+own
+.B [[...]]
+links - not resolved against the corpus, so an anchored or
+dangling target is shown as written.
+.TP
+.BR --dot
+Graphviz source: a directed graph, one edge from
+.I TITLE
+to each of its direct outbound targets.
+.RE
 
 .TP
 .BR -r ", " --random
@@ -170,24 +198,84 @@ again on that path directly. Editing and saving in place does not
 have this limitation.
 
 .TP
-.BR --orphan
+.BR --orphan " [" --tsv | --dot ]
 List articles that are not referenced by any other article.
 
 .TP
 .BR --orphan " --count"
 Display only the number of orphan articles.
 
+.RS
 .TP
-.BR --dangling
+.BR --tsv
+Plain tab-separated rows (columns:
+.BR canon ", " display ).
+.TP
+.BR --dot
+Graphviz source: each orphan as a standalone, problem-colored
+node (
+.BR DOT_PROBLEM_NODE_COLOR ,
+see
+.BR nina.conf (5)).
+No edges - an orphan has no incoming links to draw by
+definition. Takes priority over
+.B --count
+if both are given.
+.RE
+
+.TP
+.BR --dangling " [" --tsv | --dot ]
 List links that reference articles that do not exist.
 
 .TP
 .BR --dangling " --count"
 Display only the number of dangling links.
 
+.RS
 .TP
-.BR --graph
-Output a graph representation of article links suitable for Graphviz.
+.BR --tsv
+Plain tab-separated rows (columns:
+.BR target_canon ", " target_display ", " source_canon ", "
+.BR source_display ),
+one row per (dangling target, referencing article) pair.
+.TP
+.BR --dot
+Graphviz source: each dangling target as a standalone,
+problem-colored node (
+.BR DOT_PROBLEM_NODE_COLOR ,
+see
+.BR nina.conf (5)),
+labeled with
+.B "\(dq (missing)\(dq"
+appended. No edges, same reasoning as
+.BR --orphan .
+Takes priority over
+.B --count
+if both are given.
+.RE
+
+.TP
+.BR --graph " [" --tsv | --dot ]
+Output a graph representation of article links.
+.B --dot
+is the default (unchanged from before this option existed, so a
+bare
+.B nina --graph
+still pipes straight into
+.BR dot (1)).
+.RS
+.TP
+.BR --dot
+Graphviz source: a directed graph, one edge per distinct
+article-to-article link in the corpus.
+.TP
+.BR --tsv
+Plain tab-separated rows (columns:
+.BR src_canon ", " src ", " target_canon ", " target ),
+the same edge set as
+.BR --dot ,
+for piping into other tools.
+.RE
 
 .TP
 .BR --tag-graph " " { cooccur , links , islands } " [" --table | --tree | --tsv | --dot ] " [" --top \ N ] " [" --min \ N ] " [" --tag \ TAG ]
@@ -232,8 +320,15 @@ own output.
 Plain tab-separated rows, for piping into other tools.
 .TP
 .BR --dot
-Graphviz source, same convention as
+Graphviz source, same conventions as
 .BR --graph .
+.B links
+is directed, matching the real links it rolls up;
+.B cooccur
+and
+.B islands
+are undirected, since co-occurrence and connected-component
+membership are both inherently symmetric.
 .TP
 .BR --top " N"
 Cap the number of rows (or, for
@@ -262,7 +357,7 @@ Restrict the view to pairs, edges, or a subgraph involving
 .RE
 
 .TP
-.BR --tree " TITLE " [ --depth \ N " | " -d \ N ]
+.BR --tree " TITLE " [ --depth \ N " | " -d \ N ] " [" --tsv | --dot ]
 Display a link-graph map centered on
 .IR TITLE :
 articles that link to it are drawn above, articles it links to are
@@ -300,6 +395,23 @@ must be a whole number, 1 or greater. Accepts
 .IR N ,
 or
 .B -d= N.
+.TP
+.BR --tsv
+Plain tab-separated rows (columns:
+.BR row ", " direction ", " depth ", " canon ", " display ", "
+.BR mutual ),
+one row per node including the center (row 0, direction
+.BR center ).
+.TP
+.BR --dot
+Graphviz source: a directed graph, one edge per row in that row's
+own real link direction (an ancestor row links TO its tree-parent,
+a descendant row is linked FROM its tree-parent). Uses
+.B rankdir=TB
+rather than the usual
+.B LR
+default, matching the vertical layout drawn in the other two
+formats.
 .RE
 
 The center article's title is styled using

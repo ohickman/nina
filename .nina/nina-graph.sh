@@ -11,6 +11,27 @@ load_config
 require_index
 
 # -----------------------------------------
+# Argument parsing
+#
+# --dot is the long-standing default (this command predates
+# --tsv existing at all) and stays the default so a bare
+# `nina --graph` keeps working unchanged for anyone already
+# piping it into `dot`/`sfdp`. --tsv is available alongside it
+# for machine consumers that want the same edge set as plain
+# rows instead of Graphviz source.
+# -----------------------------------------
+
+FORMAT="dot"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --dot) FORMAT="dot"; shift ;;
+        --tsv) FORMAT="tsv"; shift ;;
+        *) die "Unknown option: $1" ;;
+    esac
+done
+
+# -----------------------------------------
 # Build the corpus title/alias maps via the
 # shared library (nina-lib.sh: build_title_maps).
 #
@@ -30,9 +51,14 @@ declare -A alias_map
 
 build_title_maps title_map alias_map
 
-echo "digraph nina {"
-echo "    rankdir=LR;"
-echo
+if [[ "$FORMAT" == "dot" ]]; then
+    dot_comment "nina --graph --dot"
+    dot_graph_open "nina" true
+fi
+
+if [[ "$FORMAT" == "tsv" ]]; then
+    printf '#src_canon\tsrc\ttarget_canon\ttarget\n'
+fi
 
 # -----------------------------------------
 # resolve_split_target uses a target already
@@ -62,7 +88,7 @@ echo
 
 declare -A printed_edge
 
-scan_links | while IFS=$'\t' read -r src src_canon target target_canon; do
+while IFS=$'\t' read -r src src_canon target target_canon; do
 
     resolved_target="$target"
     resolved_target_canon="$target_canon"
@@ -80,9 +106,26 @@ scan_links | while IFS=$'\t' read -r src src_canon target target_canon; do
     [[ -n "${printed_edge[$edge_key]:-}" ]] && continue
     printed_edge["$edge_key"]=1
 
-    dot_src=$(printf '%s' "$src" | sed 's/\\/\\\\/g; s/"/\\"/g')
-    dot_target=$(printf '%s' "$resolved_target" | sed 's/\\/\\\\/g; s/"/\\"/g')
-    printf '    "%s" -> "%s";\n' "$dot_src" "$dot_target"
-done
+    case "$FORMAT" in
+        dot)
+            # --graph only ever shows article-to-article
+            # connectivity, never a link count (see the dedup
+            # comment above) - there is no natural per-edge
+            # strength to weight or label with here, unlike
+            # every other --dot mode. A constant strength of 1
+            # is passed so this graph still renders through the
+            # same dot_edge() every relationship graph uses
+            # (uniform penwidth floor, honors DOT_SHOW_EDGE_LABELS
+            # like everything else) rather than hand-rolling a
+            # one-off unweighted edge line here.
+            dot_edge "$src" "$resolved_target" 1 true
+            ;;
+        tsv)
+            printf '%s\t%s\t%s\t%s\n' "$src_canon" "$src" "$resolved_target_canon" "$resolved_target"
+            ;;
+    esac
+done < <(scan_links)
 
-echo "}"
+[[ "$FORMAT" == "dot" ]] && dot_graph_close
+
+exit 0

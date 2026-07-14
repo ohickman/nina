@@ -9,7 +9,15 @@ source "$SCRIPT_DIR/nina-lib.sh"
 load_config
 
 COUNT_MODE=false
-[[ "$1" == "--count" ]] && COUNT_MODE=true
+TSV_MODE=false
+DOT_MODE=false
+for arg in "$@"; do
+    case "$arg" in
+        --count) COUNT_MODE=true ;;
+        --tsv)   TSV_MODE=true ;;
+        --dot)   DOT_MODE=true ;;
+    esac
+done
 
 require_index
 
@@ -63,6 +71,7 @@ done < <(scan_links)
 # -----------------------------------------
 
 orphans=()
+orphans_canon=()
 
 while IFS= read -r title; do
 
@@ -70,9 +79,52 @@ while IFS= read -r title; do
 
     if [[ -z "${referenced[$canonical]}" ]]; then
         orphans+=("$title")
+        orphans_canon+=("$canonical")
     fi
 
 done < <(index_titles)
+
+# -----------------------------------------
+# tsv mode - for the TUI's generic list renderer (and any other
+# machine consumer) - see "The canon/display Pair" in the
+# technical guide's --tsv section. orphans_canon already holds
+# each row's canonical form, computed above as part of identifying
+# orphans in the first place - not recomputed here. Always emits
+# the header, even with zero rows, checked before --count so a
+# combination of both (unlikely, but not forbidden) favors the
+# machine-readable answer. --dot (below) follows the same
+# priority for the same reason.
+# -----------------------------------------
+
+if [[ "$TSV_MODE" == true ]]; then
+    printf '#canon\tdisplay\n'
+    for i in "${!orphans[@]}"; do
+        printf '%s\t%s\n' "${orphans_canon[$i]}" "${orphans[$i]}"
+    done
+    exit 0
+fi
+
+# -----------------------------------------
+# dot mode - problem-node style, per [[Nina - Devs: Graph Output
+# Standard]]: an orphan has no incoming links TO draw - that's
+# the whole point of it being orphaned - so there's no
+# relationship to draw an edge for. Each orphan is a standalone
+# node, styled with the config's problem color, same documented
+# exception --dangling --dot follows. Unlike a dangling target,
+# an orphan IS a real article, just an unreferenced one, so its
+# label is left plain - no "(missing)"-style suffix, which would
+# misdescribe it.
+# -----------------------------------------
+
+if [[ "$DOT_MODE" == true ]]; then
+    dot_comment "nina --orphan --dot"
+    dot_graph_open "nina_orphan" true
+    for orphan in "${orphans[@]}"; do
+        dot_node "$orphan" "style=\"rounded,filled\", fillcolor=\"$DOT_PROBLEM_NODE_COLOR\""
+    done
+    dot_graph_close
+    exit 0
+fi
 
 # -----------------------------------------
 # Return count or display results

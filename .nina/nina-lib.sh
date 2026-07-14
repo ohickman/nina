@@ -558,6 +558,118 @@ dedup_titles() {
 }
 
 ###########################################
+#          GRAPH OUTPUT (--dot)           #
+###########################################
+# -----------------------------------------
+# Shared helpers behind every command's --dot mode. See
+# [[Nina - Devs: Graph Output Standard]] for the full contract
+# these implement - node/edge styling, penwidth scaling, and
+# escaping all live here once so a --dot mode never invents its
+# own answer to "how do I draw this". DOT_* config variables
+# (DOT_PENWIDTH_MIN/MAX/SCALE, DOT_NODE_SHAPE, DOT_NODE_STYLE,
+# DOT_FONTNAME, DOT_FONTSIZE, DOT_RANKDIR, DOT_SHOW_EDGE_LABELS,
+# DOT_PROBLEM_NODE_COLOR) are loaded by load_config from the
+# GRAPH OUTPUT block in ~/.nina/config.
+# -----------------------------------------
+
+# dot_comment TEXT
+# Prints a single "// TEXT" line - DOT's real comment syntax,
+# not the "#"-prefixed line-discard form (that one exists for
+# C-preprocessor line markers, not as documented comment
+# syntax). Every --dot mode calls this exactly once, before
+# dot_graph_open, to emit the mandatory self-describing header
+# naming the command that produced the output - required even
+# on a graph with zero edges, same reasoning as the --tsv
+# header being required on zero rows.
+dot_comment() {
+    printf '// %s\n' "$1"
+}
+
+# dot_escape TEXT
+# Escapes backslashes and double quotes so TEXT is safe inside
+# a quoted Graphviz label or node ID ('\' -> '\\', '"' -> '\"').
+# Every node name and every label that isn't a bare number must
+# go through this before being printed.
+dot_escape() {
+    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+# dot_weight STRENGTH
+# Maps a raw strength value (a link count, a co-occurrence
+# count, a --similar score) onto a Graphviz penwidth via:
+#     penwidth = min(DOT_PENWIDTH_MAX, DOT_PENWIDTH_MIN + STRENGTH / DOT_PENWIDTH_SCALE)
+# so a heavily-weighted edge is visually heavier without one
+# outlier making every other edge in the same graph look like a
+# hairline by comparison. Accepts a float (a --similar score)
+# as readily as an integer (a link count).
+dot_weight() {
+    awk -v s="$1" -v min="$DOT_PENWIDTH_MIN" -v max="$DOT_PENWIDTH_MAX" -v scale="$DOT_PENWIDTH_SCALE" \
+        'BEGIN { w = min + s/scale; if (w > max) w = max; printf "%.1f", w }'
+}
+
+# dot_graph_open NAME DIRECTED
+# Prints the opening line and shared graph-level attributes.
+# DIRECTED is "true" or "false" and picks digraph (->) vs graph
+# (--) - see "Graph Direction and Rankdir" in the standard doc:
+# directed for a relationship with a real direction (article A
+# links to B), undirected for an inherently symmetric one
+# (co-occurring tags, mutual similarity). Call dot_comment
+# first, separately - this function does not print the header
+# comment itself.
+dot_graph_open() {
+    local name="$1" directed="$2"
+    if [[ "$directed" == true ]]; then
+        echo "digraph $name {"
+    else
+        echo "graph $name {"
+    fi
+    echo "    rankdir=$DOT_RANKDIR;"
+    echo "    node [shape=$DOT_NODE_SHAPE, style=$DOT_NODE_STYLE, fontname=\"$DOT_FONTNAME\", fontsize=$DOT_FONTSIZE];"
+    echo
+}
+
+# dot_graph_close
+# Just "}" - exists mainly so every command closes the same way
+# and a future change (a trailing comment, say) has one place
+# to happen.
+dot_graph_close() {
+    echo "}"
+}
+
+# dot_edge FROM TO STRENGTH DIRECTED [LABEL]
+# The workhorse. Escapes both endpoints, computes the penwidth
+# via dot_weight, and prints one edge line. LABEL defaults to
+# STRENGTH itself; pass an explicit LABEL when the raw strength
+# isn't what should be displayed (e.g. a --similar score
+# rounded to two decimals while the underlying value has more
+# precision). Respects DOT_SHOW_EDGE_LABELS.
+dot_edge() {
+    local from="$1" to="$2" strength="$3" directed="$4" label="${5:-$3}"
+    local arrow="->"; [[ "$directed" != true ]] && arrow="--"
+    local ef et w
+    ef="$(dot_escape "$from")"
+    et="$(dot_escape "$to")"
+    w="$(dot_weight "$strength")"
+    if [[ "$DOT_SHOW_EDGE_LABELS" == true ]]; then
+        printf '    "%s" %s "%s" [label="%s", penwidth=%s];\n' "$ef" "$arrow" "$et" "$label" "$w"
+    else
+        printf '    "%s" %s "%s" [penwidth=%s];\n' "$ef" "$arrow" "$et" "$w"
+    fi
+}
+
+# dot_node NAME [EXTRA_ATTRS]
+# Prints a standalone node declaration, with optional extra
+# Graphviz attributes appended verbatim (used by the
+# problem-node modes - --orphan, --dangling - to add
+# fillcolor). A plain relationship graph never needs to call
+# this: nodes that appear in an edge are declared implicitly by
+# Graphviz itself.
+dot_node() {
+    local name="$1" extra="${2:-}"
+    printf '    "%s"%s;\n' "$(dot_escape "$name")" "${extra:+ [$extra]}"
+}
+
+###########################################
 #            NAVIGATION HELPERS           #
 ###########################################
 

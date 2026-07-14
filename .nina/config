@@ -1,22 +1,3 @@
-#!/usr/bin/env bash
-
-# -----------------------------------------
-# Resolve script directory and load library
-# -----------------------------------------
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/nina-lib.sh"
-
-CONFIG_FILE="$HOME/.nina/config"
-mkdir -p "$(dirname "$CONFIG_FILE")"
-
-# -----------------------------------------
-# Create default config
-# -----------------------------------------
-
-create_default_config() {
-
-cat <<'EOF' > "$CONFIG_FILE"
 #################################
 # PATHS
 #################################
@@ -39,11 +20,12 @@ ENABLE_CREATE_PROMPT=true
 # Rebuild index automatically after create/edit
 AUTO_REINDEX=true
 
-# Enable alias resolution. When on, the indexer builds
+# Enable alias resolution (BETA). When on, the indexer builds
 # a secondary alias->title index from any "- Alias:" header
 # lines, letting an article be opened by an alternate name.
-# Off by default.
-ENABLE_ALIASES=false
+# Off by default while the feature is still being built out
+# across the other commands.
+ENABLE_ALIASES=true
 
 # Show linked article list after viewing
 SHOW_LINK_LIST=true
@@ -61,14 +43,14 @@ ENABLE_MACROS=true
 # Off by default - plugins are a more powerful, less
 # sandboxed capability than macros, and turning this on is
 # a deliberate choice, not a default behavior.
-ENABLE_PLUGINS=false
+ENABLE_PLUGINS=true
 
 # Allow plugins to reach the network via plugin_http_get().
 # Has no effect if ENABLE_PLUGINS is false. Read access to
 # the corpus itself (plugin_call_nina() and its wrappers)
 # is not gated by a flag - see Nina - Developer Technical
 # Guide, "The Plugin System", for why.
-PLUGIN_PERMIT_WEB=false
+PLUGIN_PERMIT_WEB=true
 
 # Per-invocation time limit (seconds) for a plugin that
 # references plugin_http_get() or plugin_call_nina() -
@@ -105,12 +87,12 @@ if [[ "$ENABLE_COLOR" == true ]]; then
 	RESET="\033[0m"
 
 	# Headers
-	H1_STYLE=" \033[1;4;15m    "
-	H2_STYLE=" \033[1;4m\033[38;5;81m     "
-	H3_STYLE=" \033[1;4m\033[38;5;45m      "
-	H4_STYLE=" \033[1;4m\033[38;5;39m       "
-	H5_STYLE=" \033[1;4m\033[38;5;75m        "
-	H6_STYLE=" \033[1;4m\033[38;5;69m         "
+	H1_STYLE=" \033[1;4;15m  "
+	H2_STYLE="  \033[1;4m\033[38;5;81m  "
+	H3_STYLE="   \033[1;4m\033[38;5;45m  "
+	H4_STYLE="    \033[1;4m\033[38;5;39m  "
+	H5_STYLE="     \033[1;4m\033[38;5;75m  "
+	H6_STYLE="      \033[1;4m\033[38;5;69m  "
 	SUBTITLE_STYLE="\033[94m"
 
 	# Line level
@@ -146,6 +128,12 @@ if [[ "$ENABLE_COLOR" == true ]]; then
 	HR_SYMBOL="┈"
 	HR_STYLE="\033[38;5;60m"
 
+	# Graph / Tree View
+	# Applied to the center article's title in `nina --tree`
+	# output. Set to "" for no styling at all; any other ANSI
+	# sequence works just as well as bold.
+	TREE_CENTER_STYLE="\033[1m"
+
 else
 	RESET="\033[0m"
 
@@ -179,7 +167,7 @@ else
 	HIGHLIGHT_STYLE="\033[7m"
 	STRIKEOUT_STYLE="\033[9m"
 
-	# Admonitions / Callouts
+	# Admonitions / callouts
 	INFO_STYLE=" \033[7m"
 	NOTE_STYLE=" \033[7m"
 	TIP_STYLE=" \033[7m"
@@ -190,6 +178,9 @@ else
 	# Horizontal Rules
 	HR_SYMBOL="-"
 	HR_STYLE=""
+
+	# Graph / Tree View
+	TREE_CENTER_STYLE="\033[1m"
 fi
 
 #################################
@@ -214,7 +205,7 @@ DOT_FONTNAME="Helvetica"
 DOT_FONTSIZE=10
 
 # Default layout direction. Individual commands may override this
-# (e.g. "nina --tree --dot" uses TB) but should not invent a
+# (see the Graph Output Standard doc) but should not invent a
 # different default of their own.
 DOT_RANKDIR="LR"
 
@@ -223,113 +214,7 @@ DOT_RANKDIR="LR"
 # uncluttered look once the corpus gets large.
 DOT_SHOW_EDGE_LABELS=true
 
-# Fill color for a node "nina --orphan --dot" or "nina --dangling
-# --dot" draws to call out a problem node. Not used by any of the
-# "real relationship" graphs.
+# Fill color for a node --orphan --dot or --dangling --dot draws to
+# call out a problem node. Not used by any of the "real relationship"
+# graphs.
 DOT_PROBLEM_NODE_COLOR="#f8d7da"
-EOF
-
-    info "Default config created at $CONFIG_FILE"
-}
-
-# -----------------------------------------
-# Create config if missing
-# -----------------------------------------
-
-if [[ ! -f "$CONFIG_FILE" ]]; then
-    create_default_config
-    info "A default configuration file has been created."
-    info "To customize configuration file use 'nina --config --edit'"
-    exit 0
-fi
-
-# -----------------------------------------
-# RESET MODE
-# (checked before sourcing, so reset still
-#  works even if the current config is broken)
-# -----------------------------------------
-
-if [[ "$1" == "--reset" ]]; then
-    echo
-    warn "This will overwrite your current config with defaults."
-    read -r -p "Type 'reset' to confirm: " confirm
-
-    if [[ "$confirm" != "reset" ]]; then
-        info "Aborted."
-        exit 0
-    fi
-
-    backup="${CONFIG_FILE}.bak"
-    cp "$CONFIG_FILE" "$backup" || die "Failed to back up existing config."
-    info "Backup saved to: $backup"
-
-    create_default_config
-
-    echo
-    info "Config reset. Edit to set your paths:"
-    echo "  nina --config --edit"
-    exit 0
-fi
-
-# -----------------------------------------
-# Load configuration
-# -----------------------------------------
-
-# shellcheck disable=SC1090
-source "$CONFIG_FILE"
-
-# -----------------------------------------
-# VALIDATE MODE
-# -----------------------------------------
-
-if [[ "$1" == "--validate" ]]; then
-    echo
-    run "Validating config..."
-
-    # Syntax check
-    if ! bash -n "$CONFIG_FILE" 2>/dev/null; then
-        error "Syntax error in config file"
-        exit 2
-    fi
-
-    ok "Syntax valid"
-
-    # shellcheck disable=SC1090
-    source "$CONFIG_FILE"
-
-    missing=0
-
-    for var in NINA_DIR INDEX_FILE; do
-        if [[ -z "${!var}" ]]; then
-            error "Required variable not set: $var"
-            missing=1
-        fi
-    done
-
-    if [[ $missing -eq 0 ]]; then
-        ok "Required variables present"
-        exit 0
-    else
-        exit 2
-    fi
-fi
-
-# -----------------------------------------
-# EDIT MODE
-# -----------------------------------------
-
-if [[ "$1" == "--edit" ]]; then
-    editor="${EDITOR:-vi}"
-    "$editor" "$CONFIG_FILE"
-    exit $?
-fi
-
-# -----------------------------------------
-# VIEW MODE
-# -----------------------------------------
-
-echo
-echo "nina configuration:"
-echo "-------------------"
-echo
-less "$CONFIG_FILE"

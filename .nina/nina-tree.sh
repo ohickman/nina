@@ -46,6 +46,7 @@ fi
 
 TREE_DEPTH=2
 TITLE=""
+FORMAT="text"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -57,6 +58,14 @@ while [[ $# -gt 0 ]]; do
             TREE_DEPTH="$2"
             shift 2
             ;;
+        --tsv)
+            FORMAT="tsv"
+            shift
+            ;;
+        --dot)
+            FORMAT="dot"
+            shift
+            ;;
         *)
             TITLE="$1"
             shift
@@ -64,7 +73,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-[[ -z "$TITLE" ]] && die 'Usage: nina --tree "Article Title" [--depth N | -d N]'
+[[ -z "$TITLE" ]] && die 'Usage: nina --tree "Article Title" [--depth N | -d N] [--tsv|--dot]'
 
 MAX_TREE_DEPTH=10
 
@@ -219,11 +228,115 @@ has_edge()     { [[ -n "${EDGE_SET[$1$'\x1f'$2]:-}" ]]; }
 COUNTER=0
 ROW_TITLES=()
 
+# -----------------------------------------
+# --dot contract for this command - see [[Nina - Devs: Graph
+# Output Standard]]. Directed: an ancestor row exists because it
+# links TO its immediate tree-parent (a real backlink), and a
+# descendant row exists because its immediate tree-parent links
+# TO it - both are real, directed links, not a structural
+# convenience, so each printed row (other than the center)
+# becomes exactly one dot_edge() call in the row's own real link
+# direction. There is no natural per-edge strength here (this
+# view shows connectivity within a depth-limited neighborhood,
+# never a count) - same reasoning as nina-graph.sh, a constant
+# strength of 1 is passed so these edges still render through
+# the same dot_edge() every relationship graph uses.
+#
+# rankdir is overridden to TB (top-bottom), not the config
+# default (normally LR) - see "Graph Direction and Rankdir" in
+# the standard doc, which anticipates exactly this override for
+# --tree: ancestors print above the center and descendants below
+# it in text mode, and TB is the layout that actually matches
+# that shape. Noted in the dot_comment header line below, as the
+# standard doc requires whenever a mode diverges from the
+# default.
+# -----------------------------------------
+
+if [[ "$FORMAT" == "dot" ]]; then
+    DOT_RANKDIR="TB"
+    dot_comment "nina --tree --depth $TREE_DEPTH \"$TITLE\" --dot (rankdir=TB, overriding the LR default)"
+    dot_graph_open "nina_tree" true
+    # The center is declared explicitly so it's still visible as
+    # its own node even when it has no ancestors or descendants
+    # at all (an isolated article) - every other node is declared
+    # implicitly by appearing in an edge, same as every other
+    # relationship graph.
+    dot_node "$CENTER_DISPLAY"
+fi
+
+# -----------------------------------------
+# --tsv contract for this command - see "Machine-Readable Output
+# (--tsv)" in [[Nina - Devs: Technical Guide]] for the general
+# rule this follows (header line, append-only columns). What's
+# below is this command's own column meanings, which that
+# general section deliberately leaves to each command to
+# document for itself.
+#
+# One header line, then one line per row, six tab-separated
+# fields:
+#
+#   row        bracket number - 0 for the center article,
+#              1..N for every other row, same numbering
+#              open_tree_menu() already uses in text mode
+#   direction  "center" | "ancestor" | "descendant"
+#   depth      hops from the center - 0 for the center row,
+#              1..TREE_DEPTH otherwise
+#   canon      canonical title (safe machine key - see
+#              canonical_title() in nina-lib.sh)
+#   display    the article's real stored title
+#   mutual     1 if this node also links directly back to its
+#              own immediate tree-parent (the same condition
+#              that prints "▼"/"▲" in text mode - see the
+#              comment above render_ancestors for the full
+#              reasoning), 0 otherwise. Always 0 for the
+#              center row.
+#
+# No box-drawing, no ANSI styling, no prefix - a consumer that
+# wants a tree drawn is expected to draw it from depth/direction
+# itself, sized to its own display, rather than parsing anything
+# built for a fixed-width terminal. Row order matches text-mode
+# print order (ancestors, then center, then descendants) so the
+# two output modes stay easy to compare by eye, but no consumer
+# should rely on order over the row/direction/depth fields
+# themselves.
+# -----------------------------------------
+
+if [[ "$FORMAT" == "tsv" ]]; then
+    printf '#row\tdirection\tdepth\tcanon\tdisplay\tmutual\n'
+fi
+
+# print_row PREFIX TITLE MARKER CANON DIRECTION DEPTH PARENT_CANON
+#
+# PARENT_CANON is the row's immediate tree-parent - the node it
+# was reached from during the recursion, always already known at
+# every call site (it's the "canon" the caller is currently
+# expanding). Threaded through only for --dot's benefit: an
+# ancestor row's real link direction is (this row -> parent),
+# and a descendant row's is (parent -> this row) - see the --dot
+# contract comment above. text and tsv modes ignore it.
 print_row() {
-    local prefix="$1" title="$2" marker="$3"
+    local prefix="$1" title="$2" marker="$3" canon="$4" direction="$5" depth="$6" parent_canon="$7"
     COUNTER=$((COUNTER + 1))
     ROW_TITLES+=("$title")
-    printf "[%4d] %s%s%s\n" "$COUNTER" "$prefix" "$title" "$marker"
+
+    case "$FORMAT" in
+        tsv)
+            local mutual=0
+            [[ -n "$marker" ]] && mutual=1
+            printf '%d\t%s\t%d\t%s\t%s\t%d\n' "$COUNTER" "$direction" "$depth" "$canon" "$title" "$mutual"
+            ;;
+        dot)
+            local parent_disp="${canonical_to_title[$parent_canon]:-$parent_canon}"
+            if [[ "$direction" == "ancestor" ]]; then
+                dot_edge "$title" "$parent_disp" 1 true
+            else
+                dot_edge "$parent_disp" "$title" 1 true
+            fi
+            ;;
+        *)
+            printf "[%4d] %s%s%s\n" "$COUNTER" "$prefix" "$title" "$marker"
+            ;;
+    esac
 }
 
 # -----------------------------------------
@@ -311,7 +424,7 @@ render_ancestors() {
             marker="  ▼"
         fi
 
-        print_row "$conn" "$disp" "$marker"
+        print_row "$conn" "$disp" "$marker" "$c2" "ancestor" "$((TREE_DEPTH - remaining + 1))" "$canon"
     done
 }
 
@@ -356,7 +469,7 @@ render_descendants() {
             marker="  ▲"
         fi
 
-        print_row "$conn" "$disp" "$marker"
+        print_row "$conn" "$disp" "$marker" "$c2" "descendant" "$((TREE_DEPTH - remaining + 1))" "$canon"
 
         child_prefix="$prefix"
         if (( is_last )); then child_prefix+="    "; else child_prefix+="│   "; fi
@@ -426,28 +539,44 @@ open_tree_menu() {
 # "│" to connect to.
 # -----------------------------------------
 
-echo
-echo "---- Article Tree ----"
-echo
+if [[ "$FORMAT" == "text" ]]; then
+    echo
+    echo "---- Article Tree ----"
+    echo
+fi
 
 render_ancestors "$CENTER_CANON" "" "$TREE_DEPTH"
 ancestor_rows=$COUNTER
-(( ancestor_rows > 0 )) && printf "%7s│\n" ""
-
-center_title="$CENTER_DISPLAY"
-if [[ -n "$TREE_CENTER_STYLE" ]]; then
-    # TREE_CENTER_STYLE/RESET, like every style variable in
-    # ~/.nina/config, are stored as literal backslash-escape
-    # text (e.g. "\033[1m") - the same form nina-render.sh
-    # passes to awk, whose -v assignment interprets C-style
-    # escapes. Plain bash string interpolation does not, so
-    # printf %b (which does interpret them, unlike %s) is
-    # needed here to turn that text into real ESC bytes.
-    style="$(printf '%b' "$TREE_CENTER_STYLE")"
-    reset="$(printf '%b' "$RESET")"
-    center_title="${style}${CENTER_DISPLAY}${reset}"
+if [[ "$FORMAT" == "text" ]]; then
+    (( ancestor_rows > 0 )) && printf "%7s│\n" ""
 fi
-printf "[%4d] %s%s\n" 0 "╞══ " "$center_title"
+
+case "$FORMAT" in
+    tsv)
+        printf '0\tcenter\t0\t%s\t%s\t0\n' "$CENTER_CANON" "$CENTER_DISPLAY"
+        ;;
+    dot)
+        : # Center node already declared up front, before the
+          # ancestor/descendant recursion - see the --dot contract
+          # comment above print_row.
+        ;;
+    *)
+        center_title="$CENTER_DISPLAY"
+        if [[ -n "$TREE_CENTER_STYLE" ]]; then
+            # TREE_CENTER_STYLE/RESET, like every style variable in
+            # ~/.nina/config, are stored as literal backslash-escape
+            # text (e.g. "\033[1m") - the same form nina-render.sh
+            # passes to awk, whose -v assignment interprets C-style
+            # escapes. Plain bash string interpolation does not, so
+            # printf %b (which does interpret them, unlike %s) is
+            # needed here to turn that text into real ESC bytes.
+            style="$(printf '%b' "$TREE_CENTER_STYLE")"
+            reset="$(printf '%b' "$RESET")"
+            center_title="${style}${CENTER_DISPLAY}${reset}"
+        fi
+        printf "[%4d] %s%s\n" 0 "╞══ " "$center_title"
+        ;;
+esac
 
 # has_descendants must be checked BEFORE render_descendants runs,
 # not after - checking COUNTER's change afterward (the way the
@@ -459,13 +588,19 @@ printf "[%4d] %s%s\n" 0 "╞══ " "$center_title"
 # lets this line print in between, where it belongs.
 has_descendants=false
 [[ -n "$(out_children "$CENTER_CANON" | awk -F'\t' -v c="$CENTER_CANON" '$2 != c')" ]] && has_descendants=true
-$has_descendants && printf "%7s│\n" ""
+if [[ "$FORMAT" == "text" ]]; then
+    $has_descendants && printf "%7s│\n" ""
+fi
 
 render_descendants "$CENTER_CANON" "" "$TREE_DEPTH"
 
-if (( ${#ROW_TITLES[@]} == 0 )); then
-    echo
-    info "No linked articles in either direction."
+if [[ "$FORMAT" == "text" ]]; then
+    if (( ${#ROW_TITLES[@]} == 0 )); then
+        echo
+        info "No linked articles in either direction."
+    fi
+
+    open_tree_menu "$CENTER_DISPLAY" "${ROW_TITLES[@]}"
 fi
 
-open_tree_menu "$CENTER_DISPLAY" "${ROW_TITLES[@]}"
+[[ "$FORMAT" == "dot" ]] && dot_graph_close
