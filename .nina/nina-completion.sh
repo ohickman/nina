@@ -62,7 +62,7 @@ _nina_complete()
                  --doctor -D --file-name --graph -g --index -i \
                  --links -l --macro --new -n --orphan --plugin \
                  --random -r --read --remove --repair --restore \
-                 --resync --search -s --stats --tag -t --tree"
+                 --resync --search -s --stats --tag -t --tag-graph --tree"
 
     # If completing first argument, suggest flags + titles + aliases
     if [[ $COMP_CWORD -eq 1 ]]; then
@@ -88,10 +88,19 @@ _nina_complete()
 
     # If previous argument expects a title
     case "$prev" in
-        --remove|--restore|--links|-l|--tree)
+        --remove|--restore|--links|-l|--tree|--backlinks|-b)
             if [[ -f "$INDEX_FILE" ]]; then
                 _nina_match "$cur" "$(index_titles)"
             fi
+            return 0
+            ;;
+    esac
+
+    # --tag-graph takes a mode as its first argument
+    # (cooccur|links|islands), not a title or a tag.
+    case "$prev" in
+        --tag-graph)
+            _nina_match "$cur" $'cooccur\nlinks\nislands'
             return 0
             ;;
     esac
