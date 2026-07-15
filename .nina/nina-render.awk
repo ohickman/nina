@@ -217,9 +217,6 @@ function apply_inline_delim(line, delim, style, reset,    dlen, start, search_fr
 
         line = indent TODO_SYMBOL "  " substr(line, RLENGTH+1)
     }
-    #else if (match(line, /^\[[ ]*\][ ]+/)) {
-    #    line = " " TODO_SYMBOL "  " substr(line, RLENGTH+1)
-    #}
 
     # To-do - done
     else if (match(line, /^(-*)[ ]*\[[xX][ ]*\][ ]+/)) {
@@ -234,10 +231,6 @@ function apply_inline_delim(line, delim, style, reset,    dlen, start, search_fr
         line = indent DONE_SYMBOL "  " substr(line, RLENGTH+1)
         is_done = 1
     }
-    #else if (match(line, /^\[[xX][ ]*\][ ]+/)) {
-    #    line = " " DONE_SYMBOL "  " substr(line, RLENGTH+1)
-    #    is_done = 1
-    #}
 
     # Bulleted lists
     else if (line ~ /^\*{1,15}[ ]+/) {

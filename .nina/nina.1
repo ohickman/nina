@@ -42,13 +42,32 @@ metadata header:
 
 # Article Title
 
-* Author: Name
-* Tags: tag1 tag2 tag3
-* Date: YYYY-MM-DD
-* Alias: alternate name
+- Author: Name
+- Tags: tag1 tag2 tag3
 .fi
 
-Only the title line is required. All other fields are optional.
+Only the title line is required. Every other field is optional.
+.B "- Author:"
+and
+.B "- Tags:"
+are the two fields most articles will actually carry, since
+.BR --tag ,
+.BR --search ,
+and every listing command in this document draw on them.
+
+Two further fields are optional and more specialized:
+
+.nf
+- Date: YYYY-MM-DD
+- Alias: alternate name
+.fi
+
+.B "- Date:"
+records the article's date explicitly. Without it, the
+article's real modification time on disk is used instead - this
+is mainly useful for an imported knowledge base where many files
+were written to disk at the same time (on import) but represent
+content originally created across many years.
 
 A
 .B "- Alias:"
@@ -255,7 +274,7 @@ if both are given.
 .RE
 
 .TP
-.BR --graph " [" --tsv | --dot ]
+.BR -g ", " --graph " [" --tsv | --dot ]
 Output a graph representation of article links.
 .B --dot
 is the default (unchanged from before this option existed, so a
@@ -419,6 +438,45 @@ The center article's title is styled using
 in the configuration file - bold by default, any other ANSI
 sequence if you prefer, or empty for no styling at all. See
 .BR nina.conf (5).
+
+.TP
+.BR --similar " TITLE " [ --count \ N ] " [" --explain ] " [" --tsv | --dot ]
+List articles with a lot of shared distinctive vocabulary to
+.IR TITLE ,
+regardless of whether they are linked or tagged alike at all.
+Unlike every other structure-discovery command, this one reads
+article
+.I content
+rather than the link graph or tags, so it can surface a
+relationship none of the others can see.
+
+Ranking uses the same relevance-scoring approach as
+.BR --search :
+a deliberate, useful approximation rather than a strict literal
+match, still fully deterministic (the same corpus and query
+always produce the same ordering).
+
+.RS
+.TP
+.BR --count " N"
+Show at most
+.I N
+results, ranked by similarity descending. Default 15.
+.TP
+.B --explain
+Show the similarity score alongside each result.
+.TP
+.BR --tsv
+Plain tab-separated rows (columns:
+.BR score ", " canon ", " display ", " modified ", " tags ).
+.TP
+.BR --dot
+Graphviz source: an undirected graph,
+.I TITLE
+at the center with one edge to each result, edge thickness
+scaled by similarity score - see GRAPH OUTPUT (--dot) in
+.BR nina_conf (5).
+.RE
 
 .TP
 .BR --stats

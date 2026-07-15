@@ -148,7 +148,7 @@ fi
 
 # -----------------------------------------
 # dot mode - problem-node style, per [[Nina - Devs: Graph Output
-# Standard]]: a dangling target isn't a real article, so there's
+# Standard (--dot)]]: a dangling target isn't a real article, so there's
 # no relationship to draw an edge for - each one is a standalone
 # node, styled with the config's problem color, labeled with
 # " (missing)" appended so it's visually obvious in the rendered

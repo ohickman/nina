@@ -149,7 +149,13 @@ QUERY_TITLE="${TITLE_PARTS[*]}"
 require_index
 
 CANONICAL="$(canonical_title "$QUERY_TITLE")"
-TARGET_FILE="$(find_article_file "$CANONICAL")"
+
+# Alias-aware, like nina-view.sh, nina-link-list.sh, and
+# nina-tree.sh: this is a read-only "open this" lookup, not one
+# of the mutating commands or --file-name, so it belongs on
+# resolve_article_file rather than find_article_file. See the
+# comment above resolve_article_file() in nina-lib.sh.
+TARGET_FILE="$(resolve_article_file "$CANONICAL")"
 [[ -z "$TARGET_FILE" ]] && die "No article found with title: $QUERY_TITLE"
 
 # QUERY_DISPLAY: the article's real stored title (from its own
@@ -393,7 +399,7 @@ fi
 
 # -----------------------------------------
 # dot mode - undirected, since similarity is inherently
-# symmetric (see [[Nina - Devs: Graph Output Standard]],
+# symmetric (see [[Nina - Devs: Graph Output Standard (--dot)]],
 # "Graph Direction and Rankdir"): the BM25 score used here is
 # specifically "how similar is every other article TO the
 # query", not a mutual score, but the relationship it reports -

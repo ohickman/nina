@@ -265,6 +265,162 @@ else
 fi
 
 # ----------------------------------------
+# Alias Integrity
+#
+# nina-index.sh applies two collision rules while building
+# ALIAS_INDEX_FILE - an alias shadowed by a real title, or an
+# alias claimed by more than one article, is dropped and a
+# warning is printed at index time (see the "Build the alias
+# index" comment in nina-index.sh). Those warnings scroll past
+# during a routine reindex, and ALIAS_INDEX_FILE itself only
+# ever contains the survivors, so there is no record of what
+# got dropped once the index run is over.
+#
+# This section recomputes the same thing independently from the
+# current INDEX_FILE and each article's own header, using the
+# identical rules, rather than trusting anything left over from
+# the last `nina --index` run - the same approach the Index
+# Integrity section above takes for duplicate titles and slugs.
+# ----------------------------------------
+
+print_section "Alias Integrity"
+
+if [[ "${ENABLE_ALIASES:-false}" != "true" ]]; then
+    info "Alias resolution is currently disabled (ENABLE_ALIASES is not true) - skipping alias checks"
+elif [[ ! -f "$INDEX_FILE" ]]; then
+    warn "Skipping alias checks (no index file)"
+else
+
+    declare -A doctor_real_titles     # canonical title -> 1
+    declare -A doctor_alias_target    # alias canonical -> target display title
+    declare -A doctor_alias_source    # alias canonical -> first-claiming file
+    declare -A doctor_alias_shadowed  # alias canonical -> display string
+    declare -A doctor_alias_dup       # alias canonical -> display string
+
+    # -------------------------------------
+    # Pass 1: every real title currently in the index. Needed
+    # up front and in full, since an alias can be shadowed by a
+    # title that appears later in the file than the alias itself.
+    # -------------------------------------
+
+    while IFS=$'\t' read -r file title author modified tags; do
+        [[ -z "$title" ]] && continue
+        canon=$(canonical_title "$title")
+        [[ -n "$canon" ]] && doctor_real_titles["$canon"]=1
+    done < "$INDEX_FILE"
+
+    # -------------------------------------
+    # Pass 2: every "- Alias:" line on every indexed article,
+    # checked against the complete title set from pass 1.
+    # -------------------------------------
+
+    while IFS=$'\t' read -r file title author modified tags; do
+
+        [[ -z "$title" ]] && continue
+        [[ -f "$file" ]] || continue
+
+        header=$(read_header "$file")
+
+        while IFS= read -r raw_alias; do
+
+            [[ -z "$raw_alias" ]] && continue
+
+            a_display="$(normalize_display_title "$raw_alias")"
+            a_canon="$(canonical_title "$a_display")"
+
+            [[ -z "$a_canon" ]] && continue
+
+            # Shadowed by a real title - the title always wins.
+            if [[ -n "${doctor_real_titles[$a_canon]}" ]]; then
+                doctor_alias_shadowed["$a_canon"]="$a_display"
+                continue
+            fi
+
+            # Claimed by a second, different article - drop both.
+            # A repeated "- Alias:" line on the SAME article is
+            # not a collision, just redundant, so it's ignored.
+            if [[ -n "${doctor_alias_target[$a_canon]}" ]]; then
+                if [[ "${doctor_alias_source[$a_canon]}" != "$file" ]]; then
+                    doctor_alias_dup["$a_canon"]="$a_display"
+                fi
+                continue
+            fi
+
+            doctor_alias_target["$a_canon"]="$title"
+            doctor_alias_source["$a_canon"]="$file"
+
+        done < <(printf '%s\n' "$header" | grep '^- Alias:' | sed 's/^- Alias:[[:space:]]*//')
+
+    done < "$INDEX_FILE"
+
+    if (( ${#doctor_alias_shadowed[@]} > 0 )); then
+        printf '%s\n' "${doctor_alias_shadowed[@]}" | sort |
+        while read -r d; do
+            warn "Alias shadowed by an existing title: $d"
+        done
+    else
+        ok "No aliases shadowed by a real title"
+    fi
+
+    if (( ${#doctor_alias_dup[@]} > 0 )); then
+        printf '%s\n' "${doctor_alias_dup[@]}" | sort |
+        while read -r d; do
+            warn "Alias claimed by multiple articles: $d"
+        done
+    else
+        ok "No alias collisions across articles"
+    fi
+
+    # -------------------------------------
+    # ALIAS_INDEX_FILE itself: present when it should be,
+    # not stale, and every row still resolving somewhere real.
+    # -------------------------------------
+
+    if [[ -f "$ALIAS_INDEX_FILE" ]]; then
+
+        alias_index_mtime=$(stat_mtime "$ALIAS_INDEX_FILE")
+        alias_drift_count=0
+
+        shopt -s nullglob
+        for f in "$NINA_DIR"/*.md; do
+            f_mtime=$(stat_mtime "$f")
+            (( f_mtime > alias_index_mtime )) && ((alias_drift_count++))
+        done
+        shopt -u nullglob
+
+        if (( alias_drift_count > 0 )); then
+            warn "$alias_drift_count article(s) modified since alias index was last built"
+            detail "Run: nina --index"
+        else
+            ok "Alias index appears up to date"
+        fi
+
+        stale_alias_count=0
+
+        while IFS=$'\t' read -r a_display a_target; do
+            [[ -z "$a_display" ]] && continue
+            t_canon=$(canonical_title "$a_target")
+            if [[ -z "${doctor_real_titles[$t_canon]}" ]]; then
+                warn "Alias '$a_display' points at a title no longer in the index: $a_target"
+                ((stale_alias_count++))
+            fi
+        done < "$ALIAS_INDEX_FILE"
+
+        if (( stale_alias_count == 0 )); then
+            ok "All alias targets resolve to an indexed title"
+        fi
+
+        alias_count=$(wc -l < "$ALIAS_INDEX_FILE" | tr -d ' ')
+        info "$alias_count alias(es) currently indexed"
+
+    else
+        warn "ENABLE_ALIASES is true but no alias index file found: $ALIAS_INDEX_FILE"
+        detail "Run: nina --index"
+    fi
+
+fi
+
+# ----------------------------------------
 # Macro Integrity
 # ----------------------------------------
 

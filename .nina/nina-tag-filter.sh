@@ -8,11 +8,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/nina-lib.sh"
 load_config
 
-TAG="$1"
+TAG=""
 COUNT_MODE=false
-[[ "$2" == "--count" ]] && COUNT_MODE=true
+TSV_MODE=false
 
-[[ -z "$TAG" ]] && die "Usage: nina -t <tag>"
+for arg in "$@"; do
+    case "$arg" in
+        --count) COUNT_MODE=true ;;
+        --tsv)   TSV_MODE=true ;;
+        *)       TAG="$arg" ;;
+    esac
+done
+
+[[ -z "$TAG" ]] && die "Usage: nina -t <tag> [--count] [--tsv]"
 require_index
 
 # -----------------------------------------
@@ -20,6 +28,27 @@ require_index
 # -----------------------------------------
 
 canonical_tag="$(canonical_tag "$TAG")"
+
+# -----------------------------------------
+# tsv mode - for the TUI's generic list renderer (and any other
+# machine consumer) - see "The canon/display Pair" in the
+# technical guide's --tsv section. Always emits the header, even
+# on zero matches. Checked before --count so a combination of
+# both (unlikely, but not forbidden) favors the machine-readable
+# answer, same priority nina-search.sh and others use for the
+# same reason. Same row-selection test as count mode and the
+# display loop below, each kept as its own independent pass.
+# -----------------------------------------
+
+if [[ "$TSV_MODE" == true ]]; then
+    printf '#canon\tdisplay\tmodified\ttags\n'
+    while IFS=$'\t' read -r title modified tags; do
+        [[ " $tags " == *" $canonical_tag "* ]] || continue
+        canon="$(canonical_title "$title")"
+        printf '%s\t%s\t%s\t%s\n' "$canon" "$title" "$modified" "$tags"
+    done < <(index_display_rows)
+    exit 0
+fi
 
 # -----------------------------------------
 # Count mode - print matching article count

@@ -348,12 +348,21 @@ Each article begins with a structured header:
 .nf
 # Article Title
 - Author: Name
-- Date: YYYY-MM-DD
 - Tags: tag1 tag2 tag3
 .fi
 .RE
 
-Header fields are optional but recommended.
+Only the title line is required. Every other field is optional.
+.B "- Author:"
+and
+.B "- Tags:"
+are the two fields most articles will actually carry.
+.B "- Date:"
+and
+.B "- Alias:"
+are optional and more specialized - see ARTICLE FORMAT in
+.BR nina (1)
+for what each does and when you'd want one.
 
 .SH MARKUP LANGUAGE
 

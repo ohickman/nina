@@ -106,7 +106,7 @@ fi
 
 # -----------------------------------------
 # dot mode - problem-node style, per [[Nina - Devs: Graph Output
-# Standard]]: an orphan has no incoming links TO draw - that's
+# Standard (--dot)]]: an orphan has no incoming links TO draw - that's
 # the whole point of it being orphaned - so there's no
 # relationship to draw an edge for. Each orphan is a standalone
 # node, styled with the config's problem color, same documented

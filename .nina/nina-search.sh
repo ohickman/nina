@@ -35,6 +35,7 @@
 #   nina --search <query words>
 #   nina --search <query words> --count
 #   nina --search <query words> --explain
+#   nina --search <query words> --tsv
 #   nina -s <query words>
 # =====================================================
 
@@ -104,19 +105,21 @@ FTS_WEIGHT_BODY="1.0"      # ordinary body text
 
 COUNT_MODE=false
 EXPLAIN_MODE=false
+TSV_MODE=false
 QUERY_PARTS=()
 
 for arg in "$@"; do
     case "$arg" in
         --count)   COUNT_MODE=true ;;
         --explain) EXPLAIN_MODE=true ;;
+        --tsv)     TSV_MODE=true ;;
         *)         QUERY_PARTS+=("$arg") ;;
     esac
 done
 
 QUERY="${QUERY_PARTS[*]}"
 
-[[ -z "$QUERY" ]] && die 'Usage: nina --search <query words> [--count] [--explain]'
+[[ -z "$QUERY" ]] && die 'Usage: nina --search <query words> [--count] [--explain] [--tsv]'
 require_index
 
 # Canonicalize the query the same way titles are canonicalized,
@@ -309,6 +312,40 @@ awk \
 )"
 
 # -----------------------------------------
+# Add the canon column. score_output so far is
+# score/title/modified/tags straight from awk; this widens it to
+# score/canon/display/modified/tags - see "The canon/display
+# Pair" in the technical guide's --tsv section. Small enough
+# result set (already filtered to score > 0 matches) that a
+# per-row bash loop here is fine, same reasoning nina-similar.sh
+# gives for doing the same thing.
+# -----------------------------------------
+
+score_output="$(
+    while IFS=$'\t' read -r score title modified tags; do
+        [[ -z "$title" ]] && continue
+        canon="$(canonical_title "$title")"
+        printf '%s\t%s\t%s\t%s\t%s\n' "$score" "$canon" "$title" "$modified" "$tags"
+    done <<< "$score_output"
+)"
+
+# -----------------------------------------
+# tsv mode - for the TUI's generic list renderer (and any other
+# machine consumer) - see "The canon/display Pair" in the
+# technical guide's --tsv section. Always emits the header, even
+# on zero matches. Checked before --count so a combination of
+# both (unlikely, but not forbidden) favors the machine-readable
+# answer, same priority nina-orphan.sh and nina-similar.sh use
+# for the same reason.
+# -----------------------------------------
+
+if [[ "$TSV_MODE" == true ]]; then
+    printf '#score\tcanon\tdisplay\tmodified\ttags\n'
+    [[ -n "$score_output" ]] && printf '%s\n' "$score_output"
+    exit 0
+fi
+
+# -----------------------------------------
 # Count mode - just how many articles matched
 # -----------------------------------------
 
@@ -348,7 +385,7 @@ table_header
 titles=()
 i=0
 
-while IFS=$'\t' read -r score title modified tags; do
+while IFS=$'\t' read -r score _canon title modified tags; do
 
     [[ -z "$title" ]] && continue
 

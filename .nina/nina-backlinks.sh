@@ -106,7 +106,7 @@ fi
 
 # -----------------------------------------
 # dot mode - directed, one edge per linking article -> the
-# queried title (see [[Nina - Devs: Graph Output Standard]]).
+# queried title (see [[Nina - Devs: Graph Output Standard (--dot)]]).
 # No natural per-edge strength (a source article either links to
 # the target or it doesn't - scan_links/matches already dedup to
 # one row per linking article, see the "seen" guard above), so a

@@ -562,7 +562,7 @@ dedup_titles() {
 ###########################################
 # -----------------------------------------
 # Shared helpers behind every command's --dot mode. See
-# [[Nina - Devs: Graph Output Standard]] for the full contract
+# [[Nina - Devs: Graph Output Standard (--dot)]] for the full contract
 # these implement - node/edge styling, penwidth scaling, and
 # escaping all live here once so a --dot mode never invents its
 # own answer to "how do I draw this". DOT_* config variables
@@ -1275,7 +1275,7 @@ alias_titles() {
 # Resolve a canonical input to an article file,
 # alias-aware. The shared entry point for the
 # read-only "open this" paths (nina-view,
-# nina-link-list, ...).
+# nina-link-list, nina-tree, nina-similar).
 #
 # The main index is consulted first and a hit is
 # returned immediately, so a real title always

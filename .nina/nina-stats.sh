@@ -8,10 +8,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/nina-lib.sh"
 load_config
 
+TSV_MODE=false
+for arg in "$@"; do
+    case "$arg" in
+        --tsv) TSV_MODE=true ;;
+    esac
+done
+
 require_index
 
-printf "\nNina Statistics\n"
-printf -- "---------------\n"
+if [[ "$TSV_MODE" != true ]]; then
+    printf "\nNina Statistics\n"
+    printf -- "---------------\n"
+fi
 
 # -----------------------------------------
 # Basic counts
@@ -211,6 +220,44 @@ else
 fi
 
 plugins_enabled="${ENABLE_PLUGINS:-false}"
+
+# -----------------------------------------
+# tsv mode - flat metric/value pairs for the TUI's generic list
+# renderer (and any other machine consumer) - see "The
+# canon/display Pair" in the technical guide's --tsv section.
+# There's no canon/display pair here (no titles are being
+# listed), so the header is just metric/value.
+#
+# Top Tags is deliberately NOT included: it's a frequency-sorted
+# top-10 preview of the same data nina-tag-list.sh already owns
+# in full (alphabetically, all tags, not just the top 10) - a
+# machine consumer that wants tag counts belongs there, not
+# scraping a truncated preview out of this table. Skipping the
+# aggregation here also means tsv mode never pays for work whose
+# only consumer, the human display below, isn't going to run.
+#
+# plugins_enabled is its own row rather than folded into
+# installed_plugins's value as descriptive text (the human
+# display below does that, e.g. "8 (plugin expansion disabled)")
+# - a machine field should just be the number.
+# -----------------------------------------
+
+if [[ "$TSV_MODE" == true ]]; then
+    printf '#metric\tvalue\n'
+    printf 'articles\t%s\n' "$article_count"
+    printf 'distinct_tags\t%s\n' "$tag_count"
+    printf 'unique_authors\t%s\n' "$author_count"
+    printf 'avg_tags_per_article\t%s\n' "$avg_tags"
+    printf 'oldest_article_date\t%s\n' "$oldest"
+    printf 'newest_article_date\t%s\n' "$newest"
+    printf 'orphan_articles\t%s\n' "$orphan_count"
+    printf 'dangling_links\t%s\n' "$dangling_count"
+    printf 'installed_macros\t%s\n' "$macro_count"
+    printf 'installed_plugins\t%s\n' "$plugin_count"
+    printf 'plugins_enabled\t%s\n' "$plugins_enabled"
+    printf 'plugins_reaching_network_or_corpus\t%s\n' "$plugin_reach_count"
+    exit 0
+fi
 
 # -----------------------------------------
 # Find most frequent tags

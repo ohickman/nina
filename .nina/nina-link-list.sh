@@ -64,9 +64,9 @@ SOURCE_DISPLAY="$(normalize_display_title "$(header_field "$(read_header "$FILE"
 # deduplicated by literal-text canonical form (dedup_titles), not
 # folded onto whichever real article (if any) an anchor or alias
 # ultimately points to. --tsv and --dot below report the same raw
-# list, not a resolved one, for that reason - see "Non-Goals" in
-# the rollout notes: this command's own meaning doesn't change
-# just because it grew machine-readable output formats.
+# list, not a resolved one, for that reason this command's own
+# meaning doesn't change just because it grew machine-readable
+#output formats.
 # -----------------------------------------
 
 mapfile -t links < <(
@@ -100,14 +100,14 @@ fi
 
 # -----------------------------------------
 # dot mode - directed, single source -> each direct outbound
-# target (see [[Nina - Devs: Graph Output Standard]]). The
-# shallowest relationship graph in the whole rollout: one hop,
-# one source. No natural per-edge strength (this command shows
-# which articles are linked, not how many times or how strongly -
-# dedup_titles already collapses repeats), so a constant strength
-# of 1 is passed, same reasoning as nina-graph.sh. The source is
-# declared explicitly via dot_node so it's still visible as its
-# own node even with zero outbound links.
+# target (see [[Nina - Devs: Graph Output Standard (--dot)]]). The
+# shallowest relationship graph in nina: one hop, # one source.
+# No natural per-edge strength (this command shows which articles
+# are linked, not how many times or how strongly - dedup_titles
+# already collapses repeats), so a constant strength of 1 is
+# passed, same reasoning as nina-graph.sh. The source is declared
+# explicitly via dot_node so it's still visible as its own node
+# even with zero outbound links.
 # -----------------------------------------
 
 if [[ "$FORMAT" == "dot" ]]; then

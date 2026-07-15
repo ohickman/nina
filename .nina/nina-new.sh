@@ -62,8 +62,6 @@ slug="$(generate_slug "$TITLE")"
 
 FILE="$NINA_DIR/${slug}.md"
 
-# [[ -f "$FILE" ]] && die "The file ${slug}.md already exists."
-
 # -----------------------------------------
 # Prevent filename collision
 # -----------------------------------------

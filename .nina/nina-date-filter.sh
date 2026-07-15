@@ -8,16 +8,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/nina-lib.sh"
 load_config
 
-DATE_QUERY="$1"
-
+DATE_QUERY=""
 COUNT_MODE=false
+TSV_MODE=false
 
-if [[ "$1" == "--count" ]]; then
-    COUNT_MODE=true
-    DATE_QUERY=""
-elif [[ "$2" == "--count" ]]; then
-    COUNT_MODE=true
-fi
+for arg in "$@"; do
+    case "$arg" in
+        --count) COUNT_MODE=true ;;
+        --tsv)   TSV_MODE=true ;;
+        *)       DATE_QUERY="$arg" ;;
+    esac
+done
 
 require_index
 
@@ -161,6 +162,40 @@ if [[ -z "$DATE_QUERY" ]]; then
     end="9999-12-31"
 else
     parse_date_query "$DATE_QUERY"
+fi
+
+# -----------------------------------------
+# tsv mode - for the TUI's generic list renderer (and any other
+# machine consumer) - see "The canon/display Pair" in the
+# technical guide's --tsv section. Always emits the header, even
+# on zero matches. Checked before --count so a combination of
+# both (unlikely, but not forbidden) favors the machine-readable
+# answer, same priority nina-search.sh and others use for the
+# same reason.
+#
+# Row selection mirrors the display loop below exactly (same
+# index_display_rows source, same date-range test, same
+# newest-first sort) - kept as a separate pass here rather than
+# shared, since --count's own path below needs neither title nor
+# tags and stays on its cheaper index_dates-only route.
+# -----------------------------------------
+
+if [[ "$TSV_MODE" == true ]]; then
+    printf '#canon\tdisplay\tmodified\ttags\n'
+    while IFS=$'\t' read -r title date tags; do
+        [[ -z "$title" ]] && continue
+        canon="$(canonical_title "$title")"
+        printf '%s\t%s\t%s\t%s\n' "$canon" "$title" "$date" "$tags"
+    done < <(
+        index_display_rows |
+        while IFS=$'\t' read -r title date tags; do
+            if ! [[ "$date" < "$start" ]] && ! [[ "$date" > "$end" ]]; then
+                printf '%s\t%s\t%s\n' "$title" "$date" "$tags"
+            fi
+        done |
+        sort -t $'\t' -r -k2,2
+    )
+    exit 0
 fi
 
 # -----------------------------------------

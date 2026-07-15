@@ -66,7 +66,7 @@ ENABLE_PLUGINS=false
 # Allow plugins to reach the network via plugin_http_get().
 # Has no effect if ENABLE_PLUGINS is false. Read access to
 # the corpus itself (plugin_call_nina() and its wrappers)
-# is not gated by a flag - see Nina - Developer Technical
+# is not gated by a flag - see Nina - Devs: Technical
 # Guide, "The Plugin System", for why.
 PLUGIN_PERMIT_WEB=false
 
@@ -83,7 +83,7 @@ PLUGIN_NO_WEB_TIMEOUT=0.5
 
 # Maximum bytes of output read back from a single plugin
 # invocation. Output beyond this is silently truncated,
-# never an error - see Nina - Developer Technical Guide.
+# never an error - see Nina - Devs: Technical Guide.
 PLUGIN_MAX_OUTPUT_BYTES=65536
 
 # Virtual memory limit (KB) applied to a plugin's
@@ -146,6 +146,16 @@ if [[ "$ENABLE_COLOR" == true ]]; then
 	HR_SYMBOL="┈"
 	HR_STYLE="\033[38;5;60m"
 
+	# Graph / Tree View
+	# TREE_CENTER_STYLE is applied to the center article's title
+	# in `nina --tree` output. TAG_GRAPH_HEADER_STYLE is applied
+	# to each group heading (a tag name, or an island number) in
+	# `nina --tag-graph`'s --tree output. Set either to "" for no
+	# styling at all; any other ANSI sequence works just as well
+	# as bold.
+	TREE_CENTER_STYLE="\033[1m"
+	TAG_GRAPH_HEADER_STYLE="\033[1m"
+
 else
 	RESET="\033[0m"
 
@@ -190,6 +200,13 @@ else
 	# Horizontal Rules
 	HR_SYMBOL="-"
 	HR_STYLE=""
+
+	# Graph / Tree View
+	# Same variables as above - bold is available regardless of
+	# ENABLE_COLOR, same as ITEM_STYLE. Set either to "" for no
+	# styling at all.
+	TREE_CENTER_STYLE="\033[1m"
+	TAG_GRAPH_HEADER_STYLE="\033[1m"
 fi
 
 #################################

@@ -115,7 +115,7 @@ limit_rows() {
 
 # Edge penwidth scaling now lives in nina-lib.sh as dot_weight()
 # (config-driven via DOT_PENWIDTH_MIN/MAX/SCALE) - see [[Nina -
-# Devs: Graph Output Standard]]. The old local scaled_weight()
+# Devs: Graph Output Standard (--dot)]]. The old local scaled_weight()
 # hardcoded 1/6/5; removed in favor of the shared helper so this
 # command's --dot output scales edges identically to every other
 # command's.

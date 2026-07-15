@@ -3,7 +3,7 @@
 # Determine script directory (robust against invocation location)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Dispatch helper funciton
+# Dispatch helper function
 ARGS=("${@:2}") # Var so we can always pass remaining parameters
 run() { "$SCRIPT_DIR/$1" "${ARGS[@]}"; } # really just avoids passing directory and flags every call...handle default as we did everything before.
 
@@ -29,13 +29,14 @@ case "$1" in
     --restore)      run nina-restore.sh     ;;
     --resync)       run nina-resync.sh      ;;
     --search|-s)    run nina-search.sh      ;;
+    --similar)      run nina-similar.sh     ;;
     --stats)        run nina-stats.sh       ;;
     --tag-graph)    run nina-tag-graph.sh   ;;
     --tag|-t)
-        if [[ -z "$2" ]]; then
+        if [[ -z "$2" || "$2" == "--tsv" ]]; then
             run nina-tag-list.sh
         else
-            run nina-tag-filter.sh "${@:2}"
+            run nina-tag-filter.sh
         fi
         ;;
     --tree)         run nina-tree.sh        ;;
