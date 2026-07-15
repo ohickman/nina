@@ -34,6 +34,7 @@ This card is deliberately bare. For what any of these actually do, see [[Nina - 
 ```--restore [title]     --       restore an archived article
 ```--resync              --       rename a file to match its title
 ```--search <query>      -s       full-text search, ranked by relevance
+```--similar <title>              identifies articles with similar terms
 ```--stats               --       knowledge base statistics
 ```--tag [title]         -t       list all tags, or tags of one article
 ```--tag <tag> --count   --       count articles with a tag
@@ -65,6 +66,7 @@ This card is deliberately bare. For what any of these actually do, see [[Nina - 
 ```  --graph, -g                export a link graph
 ```  --tree <title>             links radiating out from one article
 ```  --tag-graph <mode>         tag relationships: cooccur, links, islands
+```  --similar                  identifies articles with similar terms
 ```  --stats                    overall statistics
 
 ```Maintenance

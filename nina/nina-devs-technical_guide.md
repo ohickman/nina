@@ -137,6 +137,28 @@ User configuration is stored in `~/.nina/config`. This file controls directory l
 
 ---
 
+# Machine-Readable Output (--tsv)
+
+A command that other tooling might need structured data from - another nina script, a future TUI/GUI, or a person piping into `awk` - should grow a `--tsv` mode alongside its normal human-formatted output, rather than have that tooling parse the human format.
+
+Every `--tsv` mode follows the same shape:
+* First line is a `#`-prefixed header naming each column, tab-separated, e.g.:
+```#row	direction	depth	canon	display	mutual
+* This header is load-bearing, not documentation - it must be emitted even when there are zero rows.
+* Every remaining line is one row.
+* **A consumer locates columns by name, never by position:** build a name-to-index map from the header, then look up each field needed. Column order is not part of the contract and is not guaranteed to match between commands - two scripts can order the same-named columns differently.
+* A column name, once shipped, keeps its meaning forever - never renamed, repurposed, or removed. New information is only ever added as a new column.
+
+Where a command has a natural `canon`/`display` pair or other recurring columns, putting them early is a courtesy for a person skimming with `cut`/`less` - not something a script may rely on. See the comment above `print_row()` in `nina-tree.sh` for an example of one command's own column documentation.
+
+This is plain TSV, not JSON or any other structured format - consistent with the rest of nina depending on nothing beyond POSIX text tools.
+
+A `--tsv` mode is also responsible for making sure no field it emits can contain the tab delimiter itself or a stray newline. Title-derived fields (a `canon` or `display`-style column) get this for free - see "Titles Are Delimiter-Safe" under System Invariants below. Any column built from something other than a title has no such guarantee and must be sanitized at the point of emission before it ships.
+
+For the graph counterpart to this contract, see [[Nina - Devs: Graph Output Standard|Nina - Devs: Graph Output Standard (--dot)]] (`--dot`).
+
+---
+
 # Directory Structure
 
 Listed here is the default structure. Paths are set in the config file and may be modified.
@@ -161,6 +183,11 @@ The program relies on a few guarantees beyond what's already implied above:
 
 ## Titles Are Unique
 Each article title must be unique after normalization. Comparison ignores case and collapses whitespace, so small formatting differences don't create duplicate entries.
+
+## Titles Are Delimiter-Safe
+A title can never contain a literal tab or newline character by the time it reaches any script. `normalize_display_title()` and `canonical_title()` both collapse every run of whitespace - tabs and newlines included - into a single space, and `nina-index.sh` runs every title through `normalize_display_title()` before writing it to `index.tsv`. So any value pulled from a title - directly, via the index, or via `canonical_title()` - is already safe to place in a tab-separated field without further escaping.
+
+This is why `--tsv` output modes (see "Machine-Readable Output (--tsv)" above) don't sanitize their `canon`/title-derived `display`-style columns before printing them: the guarantee already holds by the time those values exist. It covers title-derived fields specifically, not user data in general - a future `--tsv` column built from something else (article body text, a URL, a macro argument) has no such guarantee and would need its own sanitization at the point of emission.
 
 ## Scripts Do Not Mutate User Content - With Narrow, Confirmed Exceptions
 This is the same principle [[Nina - Devs: Design Philosophy]] states; this section is the actual current list it points to.

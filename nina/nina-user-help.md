@@ -2,7 +2,7 @@
 - Tags: nina help
 - Alias: --help
 
-This is the full command reference. For a first introduction, see [[Nina - User: Getting Started]]. For a compact, printable list once you know what everything does, see [[Nina - Quick Reference Card]].
+This is the full command reference. For a first introduction, see [[Nina - User: Getting Started]]. For a compact, printable list once you know what everything does, see [[Nina - Quick Reference Card]]. For a closer look at `--graph`, `--tree`, and `--tag-graph`, see [[Nina - User: Knowledge Insights]].
 
 ---
 
@@ -22,6 +22,8 @@ If it doesn't exist, you may be prompted to create it - controlled by your confi
 
 Create an article directly:
 ```nina -n [title]
+or
+`1`nina --new [title]
 
 List all articles, sorted by title:
 ```nina
@@ -82,6 +84,15 @@ Links pointing to articles that don't exist:
 ```nina --graph
 `--graph` produces a file suitable for graph-visualization tools.
 
+Links radiating out from one article, a few hops in each direction:
+```nina --tree "article title"
+
+How tags relate to each other - by co-occurring on the same article, by how their articles link to each other, or by which articles form disconnected clusters:
+```nina --tag-graph cooccur
+```nina --tag-graph links
+```nina --tag-graph islands
+See [[Nina - User: Knowledge Insights]] for the full set of options.
+
 ---
 
 # Maintenance
@@ -99,12 +110,14 @@ View, edit, or validate your configuration:
 ```nina --config
 ```nina --config --edit
 ```nina --config --validate
+```nina --config --reset
+The last one backs up your current config and replaces it with a fresh, default one - useful if it's gotten into a state you'd rather not untangle by hand. You will be prompted to type `reset` to confirm.
 
 If a file's name no longer matches its article's title, you can bring them back in sync with an interactive tool where you will be pompted before each file is renamed:
 ```nina --resync
 This will help you articles on your file system because the file names will match the titles in your articles.
 
-Install or update your macros and plugins (small bits of computed content you can add to articles - see [[Nina - User: Macros and Plugins]]):
+Install or update your macros and plugins (small bits of computed content you can add to articles - see [[Nina - User: Macros and Plugins|Nina - User: Macros and Plugins#Installing and Enabling]]):
 ```nina --macro
 ```nina --plugin
 
@@ -121,11 +134,31 @@ In all cases you will be prompted to type "archive" or "delete" to confirm your 
 
 Archived articles are not indexed, cannot be opened with nina, and don't appear in link searches, backlinks, or `--links`/`--backlinks` results, until restored.
 
+Remove one specific article:
+```nina --remove [title]
+If not title is given an interactive mode will open and you can select an article by number.
 Restore one specific article:
 ```nina --restore "article name"
 Or list everything in the archive and choose:
 ```nina --restore
 An article can only be restored if its title is still unique - if not, you'll be prompted to rename it.
+
+---
+
+# Aliases
+
+Aliases let an article be opened, linked to, and tab-completed under names other than its real title. The feature is off by default; turn it on with `ENABLE_ALIASES=true` in your config.
+
+Add one or more alternate names to an article's header:
+```- Alias: --help
+```- Alias: help command
+
+Each `- Alias:` line adds one alias. Once you add or change aliases, rebuild the index (`nina --index`) so they take effect.
+
+A few rules to keep in mind:
+* If an alias collides with any article's real title, the real title always wins and the alias is ignored.
+* If two different articles claim the same alias, the alias is dropped for both, and `nina --index` will warn you about it.
+* Aliases only resolve when *opening* an article or *linking* to one (`[[Alias Name]]` in article text resolves the same as a real title). Commands that modify the knowledge base directly - `--new`, `--remove`, `--file-name` - accept only real titles, not aliases, to keep those operations unambiguous.
 
 ---
 
