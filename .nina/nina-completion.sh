@@ -62,7 +62,8 @@ _nina_complete()
                  --doctor -D --file-name --graph -g --index -i \
                  --links -l --macro --new -n --orphan --plugin \
                  --random -r --read --remove --repair --restore \
-                 --resync --search -s --stats --tag -t --tag-graph --tree"
+                 --resync --search -s --similar --stats --tag -t\
+                 --tag-graph --tree"
 
     # If completing first argument, suggest flags + titles + aliases
     if [[ $COMP_CWORD -eq 1 ]]; then
@@ -88,10 +89,15 @@ _nina_complete()
 
     # If previous argument expects a title
     case "$prev" in
-        --remove|--restore|--links|-l|--tree|--backlinks|-b)
+        --remove|--restore|--links|-l|--tree|--backlinks|-b|--similar)
+            local title_suggestions=""
             if [[ -f "$INDEX_FILE" ]]; then
-                _nina_match "$cur" "$(index_titles)"
+                title_suggestions="$(index_titles)"
             fi
+            if [[ "$ENABLE_ALIASES" == true && -f "$ALIAS_INDEX_FILE" ]]; then
+                title_suggestions+=$'\n'"$(alias_titles)"
+            fi
+            _nina_match "$cur" "$title_suggestions"
             return 0
             ;;
     esac
