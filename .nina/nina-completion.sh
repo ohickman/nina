@@ -59,11 +59,11 @@ _nina_complete()
 
     # Known flags
     local flags="--config --backlinks -b --dangling --date -d \
-                 --doctor -D --file-name --graph -g --index -i \
-                 --links -l --macro --new -n --orphan --plugin \
-                 --random -r --read --remove --repair --restore \
-                 --resync --search -s --similar --stats --tag -t\
-                 --tag-graph --tree"
+                 --doctor -D --edit -e --file-name --graph -g \
+                 --index -i --links -l --macro --new -n --orphan\
+                 --plugin --random -r --read --remove --repair\
+                 --restore --resync --search -s --similar --stats\
+                 --tag -t --tag-graph --tree"
 
     # If completing first argument, suggest flags + titles + aliases
     if [[ $COMP_CWORD -eq 1 ]]; then
@@ -89,7 +89,7 @@ _nina_complete()
 
     # If previous argument expects a title
     case "$prev" in
-        --remove|--restore|--links|-l|--tree|--backlinks|-b|--similar)
+        --remove|--restore|--links|-l|--tree|--backlinks|-b|--similar|-e|--edit)
             local title_suggestions=""
             if [[ -f "$INDEX_FILE" ]]; then
                 title_suggestions="$(index_titles)"

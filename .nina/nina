@@ -14,6 +14,7 @@ case "$1" in
     --dangling)     run nina-dangling.sh    ;;
     --date|-d)      run nina-date-filter.sh ;;
     --doctor|-D)    run nina-doctor.sh      ;;
+    --edit|-e)      run nina-edit.sh        ;;
     --file-name)    run nina-file-name.sh   ;;
     --graph|-g)     run nina-graph.sh       ;;
     --index|-i)     run nina-index.sh       ;;

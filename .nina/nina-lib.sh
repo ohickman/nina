@@ -1109,6 +1109,18 @@ require_index() {
     [[ -f "$INDEX_FILE" ]] || die "Index file not found. Run: nina --index"
 }
 
+# Reindex, but only if the config opts in. Replaces the
+# copy of this AUTO_REINDEX check duplicated at the end
+# of most command scripts that mutate an article. Relies
+# on SCRIPT_DIR being set by the caller, as it already is
+# everywhere this runs.
+request_index() {
+    if [[ "$AUTO_REINDEX" == "true" ]]; then
+        nohup "$SCRIPT_DIR/nina" --index >/dev/null &
+        disown
+    fi
+}
+
 # Raw rows, verbatim, columns in schema order.
 # The entry point for callers that genuinely need
 # more than one column together (iterate with
