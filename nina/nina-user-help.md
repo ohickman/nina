@@ -23,7 +23,12 @@ If it doesn't exist, you may be prompted to create it - controlled by your confi
 Create an article directly:
 ```nina -n [title]
 or
-`1`nina --new [title]
+```nina --new [title]
+
+Open an article for editing without viewing first:
+```nina -e <title>
+or
+```nina --edit <title>
 
 List all articles, sorted by title:
 ```nina
@@ -61,10 +66,10 @@ Tags can't contain spaces, are separated by a space or comma, and are not case-s
 
 List every tag in use:
 ```nina --tag
-List tags within one article:
-```nina --tag "My Article"
+List articles with given tag:
+```nina --tag <tag>
 Count articles carrying a tag, instead of listing them:
-```nina --tag sometag --count
+```nina --tag <tag> --count
 
 ---
 
@@ -113,9 +118,9 @@ View, edit, or validate your configuration:
 ```nina --config --reset
 The last one backs up your current config and replaces it with a fresh, default one - useful if it's gotten into a state you'd rather not untangle by hand. You will be prompted to type `reset` to confirm.
 
-If a file's name no longer matches its article's title, you can bring them back in sync with an interactive tool where you will be pompted before each file is renamed:
+If a file's name no longer matches its article's title, you can bring them back in sync with an interactive tool where you will be prompted before each file is renamed:
 ```nina --resync
-This will help you articles on your file system because the file names will match the titles in your articles.
+This will help you find articles on your file system because the file names will match the titles in your articles.
 
 Install or update your macros and plugins (small bits of computed content you can add to articles - see [[Nina - User: Macros and Plugins|Nina - User: Macros and Plugins#Installing and Enabling]]):
 ```nina --macro
@@ -136,7 +141,7 @@ Archived articles are not indexed, cannot be opened with nina, and don't appear 
 
 Remove one specific article:
 ```nina --remove [title]
-If not title is given an interactive mode will open and you can select an article by number.
+If no title is given an interactive mode will open and you can select an article by number.
 Restore one specific article:
 ```nina --restore "article name"
 Or list everything in the archive and choose:

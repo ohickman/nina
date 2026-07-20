@@ -31,10 +31,15 @@ opens a new file in your text editor with a header already filled in:
 Write your notes below it. Saving and exiting adds it to your knowledge base.
 
 # Editing Articles
-While viewing an article hit `Ctrl + v` to open the editor. When you save your work and exit the editor you will return to viewing the article.
+While viewing an article hit `v` to open the editor. When you save your work and exit the editor you will return to viewing the article.
+
+To open an article in the editor directly use:
+```nina -e <title>
 
 If you change the title of an article or change the tags, nina will not know until the index is updated.  The index is updated with:
 ```nina --index
+
+
 
 # Searching
 ```nina -s keyword

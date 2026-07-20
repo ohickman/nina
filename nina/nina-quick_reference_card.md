@@ -10,55 +10,57 @@ This card is deliberately bare. For what any of these actually do, see [[Nina - 
 
 # All Commands, Alphabetically
 
-```Long form             Short    Action
+```Long form             Short  Action
 ```---------------------- -------- --------------------------------
-```--backlinks <title>   -b       articles linking to <title>
-```--config              --       show current config
-```--config --edit       --       edit config in your editor
-```--config --validate   --       check config for errors
-```--dangling            --       links pointing to missing articles
-```--date <when>         -d       list/filter articles by date
-```--doctor              -D       check knowledge base health
-```--file-name <title>   --       print an article's file path (for other scripts)
-```--graph               -g       generate a link graph file
-```--index               -i       rebuild the article index
-```--links <title>       -l       articles linked from <title>
-```--macro               --       install/validate macros
-```--new <title>         -n       create a new article
-```--orphan              --       articles nothing links to
-```--plugin              --       install/validate plugins
-```--random              -r       open a random article
-```--read                --       render piped/stdin input
-```--remove <title>      --       delete or archive an article
-```--repair              --       interactively fix problems
-```--restore [title]     --       restore an archived article
-```--resync              --       rename a file to match its title
-```--search <query>      -s       full-text search, ranked by relevance
-```--similar <title>              identifies articles with similar terms
-```--stats               --       knowledge base statistics
-```--tag [title]         -t       list all tags, or tags of one article
-```--tag <tag> --count   --       count articles with a tag
-```--tag-graph <mode>    --       tag relationships: cooccur, links, islands
-```--tree <title>        --       links radiating out from one article
+```--backlinks <title>   -b     articles linking to <title>
+```--config              --     show current config
+```--config --edit       --     edit config in your editor
+```--config --validate   --     check config for errors
+```--dangling            --     links pointing to missing articles
+```--date <when>         -d     list/filter articles by date
+```--doctor              -D     check knowledge base health
+```--edit <title>        -e     open an article for editing
+```--file-name <title>   --     print an article's file path (for other scripts)
+```--graph               -g     generate a link graph file
+```--index               -i     rebuild the article index
+```--links <title>       -l     articles linked from <title>
+```--macro               --     install/validate macros
+```--new <title>         -n     create a new article
+```--orphan              --     articles nothing links to
+```--plugin              --     install/validate plugins
+```--random              -r     open a random article
+```--read                --     render piped/stdin input
+```--remove <title>      --     delete or archive an article
+```--repair              --     interactively fix problems
+```--restore [title]     --     restore an archived article
+```--resync              --     rename a file to match its title
+```--search <query>      -s     full-text search, ranked by relevance
+```--similar <title>            identifies articles with similar terms
+```--stats               --     knowledge base statistics
+```--tag [tag]           -t     list all tags, or articles with given tag
+```--tag <tag> --count   --     count articles with a tag
+```--tag-graph <mode>    --     tag relationships: cooccur, links, islands
+```--tree <title>        --     links radiating out from one article
 
 # By Category
 
-```Viewing
+## Viewing
 ```  nina                       list articles
 ```  nina "title"               open an article
 ```  -n, --new <title>          create a new article
 ```  -r, --random               open a random article
 ```  --read                     render piped/stdin input
+``` -e, --edit 			open an article for edting
 
-```Search and Filter
+## Search and Filter
 ```  -s, --search <query>       full-text search, ranked by relevance
 ```      --count                count matches instead of listing
 ```      --explain              show relevance score per result
-```  -t, --tag [title]          list tags, or tags of one article
+```--tag [tag]           -t     list all tags, or articles with given tag
 ```  -t, --tag <tag> --count    count articles with a tag
 ```  -d, --date <when>          filter by date (see below)
 
-```Connections
+## Connections
 ```  -l, --links <title>        what this article links to
 ```  -b, --backlinks <title>    what links to this article
 ```  --orphan                   nothing links to these
@@ -69,7 +71,7 @@ This card is deliberately bare. For what any of these actually do, see [[Nina - 
 ```  --similar                  identifies articles with similar terms
 ```  --stats                    overall statistics
 
-```Maintenance
+## Maintenance
 ```  --doctor, -D               health check
 ```  --repair                   interactive fixes
 ```  --resync                   rename file to match title
@@ -78,11 +80,11 @@ This card is deliberately bare. For what any of these actually do, see [[Nina - 
 ```  --macro                    install/validate macros
 ```  --plugin                   install/validate plugins
 
-```Archive
+## Archive
 ```  --remove <title>           delete or archive
 ```  --restore [title]          restore from archive
 
-```For Other Scripts
+## For Other Scripts
 ```  --file-name <title>        print an article's file path
 
 # Date Formats (for -d / --date)
